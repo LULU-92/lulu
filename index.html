@@ -1718,6 +1718,8 @@ async function doConnect(url, key, uid){
     syncCfg.connected = true;
     storage.set('cloudsync', syncCfg);
     syncStatus('已从云端拉取数据，即将刷新页面…', 'ok');
+    const activePage = document.querySelector('.page.active');
+    storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
     setTimeout(() => location.reload(), 800);
     return true;
   }
@@ -1788,6 +1790,18 @@ function openDrawer() {
 function closeDrawer() {
   document.querySelector('.sidebar').classList.remove('open');
   $('#drawerOverlay').classList.remove('show');
+}
+
+// 切换到指定页面（程序控制，不依赖点击事件）
+function switchPage(pageName){
+  if (!pageName || !$('#page-' + pageName)) return;
+  $$('.nav-item').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector('.nav-item[data-page="' + pageName + '"]');
+  if (btn) btn.classList.add('active');
+  $$('.page').forEach(p => p.classList.remove('active'));
+  $('#page-' + pageName).classList.add('active');
+  if (pageName === 'health') renderWeightChart();
+  closeDrawer();
 }
 
 // Tab切换通用函数
@@ -4953,6 +4967,13 @@ function init() {
   $('#travelModal').addEventListener('click', function(e) { if (e.target === this) closeTravelModal(); });
   $('#foodScanModal').addEventListener('click', function(e) { if (e.target === this) closeFoodScan(); });
 
+  // 若上次同步/导入后要求恢复页面，则切回去并提示
+  const lastPage = storage.get('wb_last_page', '');
+  if (lastPage) {
+    storage.set('wb_last_page', '');
+    switchPage(lastPage);
+    if (lastPage === 'settings') setTimeout(() => syncStatus('云端数据已恢复，可继续使用', 'ok'), 300);
+  }
 }
 
 init();
