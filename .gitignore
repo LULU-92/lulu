@@ -1,2 +1,5 @@
 # 本地数据备份，避免上传 GitHub
 lulu_backup.json
+
+# 同步脚本本身只留本地，不进公开仓库
+_sync_to_github.sh
