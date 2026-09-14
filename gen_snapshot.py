@@ -38,16 +38,23 @@ def main():
         f.write("""(function(){
   try {
     var s = window.__LULU_SNAPSHOT || {};
+    // 手机端通常连不上云端(Supabase被墙)，必须每次加载都用最新快照刷新全部数据；
+    // 桌面端已能正常连云端、且是数据编辑主端，只补充缺失键，绝不覆盖本地已有改动。
+    var ua = navigator.userAgent || '';
+    var isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|Mobile/i.test(ua);
     var n = 0;
     for (var k in s) {
       if (!Object.prototype.hasOwnProperty.call(s, k)) continue;
-      if (k.indexOf('wb_') === 0 && !localStorage.getItem(k)) {
-        localStorage.setItem(k, JSON.stringify(s[k]));
-        n++;
+      if (k.indexOf('wb_') === 0 && k !== 'wb_cloudsync') {
+        if (isMobile) {
+          localStorage.setItem(k, JSON.stringify(s[k])); n++;
+        } else if (!localStorage.getItem(k)) {
+          localStorage.setItem(k, JSON.stringify(s[k])); n++;
+        }
       }
     }
     window.__LULU_SNAP_LOADED = n;
-  } catch(e) {         window.__LULU_SNAP_ERR = String(e); }
+  } catch(e) { window.__LULU_SNAP_ERR = String(e); }
 })();
 """)
     # 版本标记：每次构建写入 version.json（含构建时间），供前端检测新版本自动刷新
