@@ -11,5 +11,5 @@ window.__LULU_SNAPSHOT = {"wb_mood":"😴","wb_foods":[{"date":"2026-07-31","mea
       }
     }
     window.__LULU_SNAP_LOADED = n;
-  } catch(e) { window.__LULU_SNAP_ERR = String(e); }
+  } catch(e) {         window.__LULU_SNAP_ERR = String(e); }
 })();

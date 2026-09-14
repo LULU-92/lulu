@@ -8,6 +8,7 @@
 """
 import json
 import os
+import datetime
 import urllib.request
 
 SUPABASE_URL = "https://cxipvrpldukfypxrqwuq.supabase.co"
@@ -46,10 +47,14 @@ def main():
       }
     }
     window.__LULU_SNAP_LOADED = n;
-  } catch(e) { window.__LULU_SNAP_ERR = String(e); }
+  } catch(e) {         window.__LULU_SNAP_ERR = String(e); }
 })();
 """)
-    print(f"OK: wrote {len(snap)} keys (self-applying) -> {out_path}")
+    # 版本标记：每次构建写入 version.json（含构建时间），供前端检测新版本自动刷新
+    ver_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
+    with open(ver_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"v": datetime.datetime.now().strftime("%Y%m%d%H%M%S")}, ensure_ascii=False))
+    print(f"OK: wrote {len(snap)} keys (self-applying) + version.json -> {out_path}")
 
 
 if __name__ == "__main__":
