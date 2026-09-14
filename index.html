@@ -1643,15 +1643,28 @@ function initCloudSync(){
     uid: SYNC_DEFAULT.uid,            // 固定同步ID，确保多设备同一份数据
     connected: !!stored.connected
   };
-  // 写回，避免空值残留
-  storage.set('cloudsync', { url: syncCfg.url, key: syncCfg.key, uid: syncCfg.uid, connected: false });
+  // 写回时保留 connected 状态，不要每次启动都重置为 false，否则新设备/浏览器永远不会自动拉取云端数据
+  storage.set('cloudsync', { url: syncCfg.url, key: syncCfg.key, uid: syncCfg.uid, connected: syncCfg.connected });
   ensureClient();
   $('#syncUrl').value = syncCfg.url || '';
   $('#syncKey').value = syncCfg.key || '';
   $('#syncUid').value = syncCfg.uid;
-  if (syncCfg.connected && syncClient) syncStatus('已连接，数据将自动同步', 'ok');
-  else if (syncCfg.url){ syncStatus('云端配置已就绪，正在连接…', 'warn'); autoConnect(); }
-  else syncStatus('未配置云端同步', '');
+  if (syncCfg.connected && syncClient){
+    syncStatus('已连接，数据将自动同步', 'ok');
+    // 连接态启动时，把本地最新改动推回云端（多设备切换后保证云端为最新）
+    scheduleSync();
+    // 防护：如果之前标记已连接但本地没有用户数据，说明上次同步可能未真正落盘（移动浏览器常见），重新拉取一次
+    if (!hasLocalData()){
+      syncCfg.connected = false;
+      storage.set('cloudsync', syncCfg);
+      autoConnect();
+    }
+  } else if (syncCfg.url){
+    syncStatus('云端配置已就绪，正在连接…', 'warn');
+    autoConnect();
+  } else {
+    syncStatus('未配置云端同步', '');
+  }
 }
 
 // 初始化 Supabase 客户端（库未加载时重试）
@@ -1661,11 +1674,11 @@ function ensureClient(){
   try { syncClient = window.supabase.createClient(syncCfg.url, syncCfg.key); } catch(e){ syncClient = null; }
 }
 
-// 本地浏览器是否已存有工作台数据
+// 本地浏览器是否已存有工作台数据（排除同步配置键，避免误判）
 function hasLocalData(){
   for (let i=0;i<localStorage.length;i++){
     const k = localStorage.key(i);
-    if (k && k.startsWith('wb_')) return true;
+    if (k && k.startsWith('wb_') && k !== 'wb_cloudsync') return true;
   }
   return false;
 }
@@ -1673,16 +1686,8 @@ function hasLocalData(){
 function autoConnect(){
   if (!syncCfg.url || !syncCfg.key || syncCfg.connected) return;
   if (!window.supabase){ setTimeout(autoConnect, 300); return; }
-  // 本地已有数据：直接连接，不再拉取刷新（避免重复刷新循环）
-  if (hasLocalData()){
-    syncCfg.connected = true;
-    storage.set('cloudsync', syncCfg);
-    ensureClient();
-    syncStatus('已连接云端（使用本地数据）', 'ok');
-    pushAll();
-    return;
-  }
-  // 本地为空：尝试从云端拉取一次并刷新
+  // 只要还未成功连接过，就直接从云端拉取一次并合并到本地。
+  // 不再用 hasLocalData() 拦截：否则手机上只有心情/空配置时，待办等数据永远补不回来。
   doConnect(syncCfg.url, syncCfg.key, syncCfg.uid, true);
 }
 
@@ -1739,7 +1744,9 @@ async function doConnect(url, key, uid, forceReload=false){
     if (forceReload){
       const activePage = document.querySelector('.page.active');
       storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
-      setTimeout(() => location.reload(), 600);
+      // 移动浏览器（微信/iOS Safari）localStorage 写入后可能需要更长时间才真正落盘，
+      // 延迟 1.5 秒再刷新，避免 reload 后数据丢失。
+      setTimeout(() => location.reload(), 1500);
     }
     return true;
   }
