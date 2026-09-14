@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """从 Supabase 拉取最新工作台数据，生成本地同域快照 lulu_data.js。
-该快照由 Cloudflare Pages 同源托管，手机端首次打开时不依赖 Supabase 可达性即可拿到数据。
+
+关键修复：lulu_data.js 在「自身加载时」就同步把数据写入 localStorage，
+早于主脚本里 `let todos = storage.get('todos')` 等模块级变量的初始化（主脚本在它之后才解析）。
+这样首次打开手机端时，内存变量能直接读到快照数据，不依赖 Supabase 是否可达。
 排除 wb_cloudsync（同步配置由设备自身 SYNC_DEFAULT 决定），只导出用户数据键。
 """
 import json
@@ -30,7 +33,23 @@ def main():
         f.write("window.__LULU_SNAPSHOT = ")
         json.dump(snap, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")
-    print(f"OK: wrote {len(snap)} keys -> {out_path}")
+        # 自应用：加载即写入 localStorage，确保不晚于主脚本的模块级变量初始化
+        f.write("""(function(){
+  try {
+    var s = window.__LULU_SNAPSHOT || {};
+    var n = 0;
+    for (var k in s) {
+      if (!Object.prototype.hasOwnProperty.call(s, k)) continue;
+      if (k.indexOf('wb_') === 0 && !localStorage.getItem(k)) {
+        localStorage.setItem(k, JSON.stringify(s[k]));
+        n++;
+      }
+    }
+    window.__LULU_SNAP_LOADED = n;
+  } catch(e) { window.__LULU_SNAP_ERR = String(e); }
+})();
+""")
+    print(f"OK: wrote {len(snap)} keys (self-applying) -> {out_path}")
 
 
 if __name__ == "__main__":
