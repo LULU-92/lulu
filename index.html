@@ -1606,6 +1606,8 @@ create policy "allow all" on lulu_data for all using (true) with check (true);</
     </div>
   </div>
 </div>
+<!-- 同域数据快照：手机端首次打开时即使 Supabase 不可达也能立即拿到数据（由 gen_snapshot.py 生成） -->
+<script src="./lulu_data.js"></script>
 <script>
 // ==================== 全局工具函数 ====================
 const $ = (s) => document.querySelector(s);
@@ -1635,6 +1637,16 @@ function syncStatus(msg, type){
 }
 
 function initCloudSync(){
+  // 同域快照兜底：在渲染前把数据写入 localStorage，确保手机端即便 Supabase 不可达也能立即显示内容。
+  // 仅当本地确实没有任何用户数据时才写入，避免覆盖本设备已有的真实改动。
+  if (!hasLocalData() && window.__LULU_SNAPSHOT){
+    try {
+      const snap = window.__LULU_SNAPSHOT;
+      let n = 0;
+      Object.keys(snap).forEach(k => { if (k.startsWith('wb_') && !localStorage.getItem(k)) { localStorage.setItem(k, JSON.stringify(snap[k])); n++; } });
+      if (n > 0) syncStatus('已从本地快照载入数据', 'ok');
+    } catch(e){ /* 忽略，交给 Supabase 兜底 */ }
+  }
   // 合并预置配置：本地存储优先，缺省回退到预置值
   const stored = storage.get('cloudsync', {}) || {};
   syncCfg = {
