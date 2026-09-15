@@ -1798,9 +1798,15 @@ async function doConnect(url, key, uid, forceReload=false){
       storage.set('cloudsync', syncCfg);
       syncStatus('已从云端拉取最新数据', 'ok');
       if (forceReload){
-        const activePage = document.querySelector('.page.active');
-        storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
-        setTimeout(() => location.reload(), 1500);
+        const ae = document.activeElement;
+        if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){
+          // 用户正在输入 → 不强行刷新，等下次轮询/切回页面时再校准，避免冲掉正在写的内容
+          syncStatus('已从云端拉取最新数据', 'ok');
+        } else {
+          const activePage = document.querySelector('.page.active');
+          storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
+          setTimeout(() => location.reload(), 1500);
+        }
       }
     } else {
       // 云端与本地一致：无需刷新，仅确认连接态
