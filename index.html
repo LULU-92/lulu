@@ -1617,27 +1617,6 @@ const storage = {
   set(k, v) { localStorage.setItem('wb_'+k, JSON.stringify(v)); scheduleSync(); }
 };
 
-// ==================== 自动检测新版本并刷新（解决主屏幕快捷方式缓存旧版不更新） ====================
-(function(){
-  function checkNewVersion(){
-    try {
-      fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.json())
-        .then(j => {
-          const v = j && j.v;
-          if (!v) return;
-          const lv = localStorage.getItem('wb_app_v');
-          if (lv && lv !== v) { location.reload(true); }
-          else { localStorage.setItem('wb_app_v', v); }
-        })
-        .catch(() => {});
-    } catch(e) { /* 忽略：离线或文件不存在时不强制刷新 */ }
-  }
-  if (document.readyState !== 'loading') checkNewVersion();
-  else document.addEventListener('DOMContentLoaded', checkNewVersion);
-  document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkNewVersion(); });
-})();
-
 // ==================== 云端同步 (Supabase) ====================
 // 已为用户预置好云端配置（多设备共用同一同步ID，保证数据互通）
 const SYNC_DEFAULT = {
