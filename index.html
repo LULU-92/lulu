@@ -1665,14 +1665,10 @@ function initCloudSync(){
   $('#syncUid').value = syncCfg.uid;
   if (syncCfg.connected && syncClient){
     syncStatus('已连接，数据将自动同步', 'ok');
-    // 连接态启动时，把本地最新改动推回云端（多设备切换后保证云端为最新）
+    // 连接态启动时，先把本地最新改动推回云端（多设备切换后保证云端为最新）
     scheduleSync();
-    // 防护：如果之前标记已连接但本地没有用户数据，说明上次同步可能未真正落盘（移动浏览器常见），重新拉取一次
-    if (!hasLocalData()){
-      syncCfg.connected = false;
-      storage.set('cloudsync', syncCfg);
-      autoConnect();
-    }
+    // 每次打开都从云端拉取最新（打开即最新）；云端无变化则不刷新，避免循环
+    autoConnect();
   } else if (syncCfg.url){
     syncStatus('云端配置已就绪，正在连接…', 'warn');
     autoConnect();
@@ -1698,10 +1694,9 @@ function hasLocalData(){
 }
 // 打开页面后自动连接（等待 Supabase 库加载完成）
 function autoConnect(){
-  if (!syncCfg.url || !syncCfg.key || syncCfg.connected) return;
+  if (!syncCfg.url || !syncCfg.key) return;
   if (!window.supabase){ setTimeout(autoConnect, 300); return; }
-  // 只要还未成功连接过，就直接从云端拉取一次并合并到本地。
-  // 不再用 hasLocalData() 拦截：否则手机上只有心情/空配置时，待办等数据永远补不回来。
+  // 每次打开都从云端拉取最新（恢复"打开即最新"）；doConnect 内部按云端是否有变化决定是否刷新，避免循环
   doConnect(syncCfg.url, syncCfg.key, syncCfg.uid, true);
 }
 
@@ -1756,29 +1751,27 @@ async function doConnect(url, key, uid, forceReload=false){
     return false;
   }
   if (data && data.data){
-    if (hasLocalData()){
-      // 本地已有用户数据：绝不用云端覆盖本地，改为把本地真实数据推回云端，
-      // 这样可自动修复"云端被空白同步误清空"的情况，也能让多设备以本地为准。
+    const cloudJson = JSON.stringify(data.data);
+    const lastJson = localStorage.getItem('lulu_last_cloud_sync') || '';
+    if (cloudJson !== lastJson){
+      // 云端有更新：拉取并合并到本地（恢复"打开即最新"的实时体验）
+      applyRemoteData(data);
+      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
       syncCfg.connected = true;
       storage.set('cloudsync', syncCfg);
+      syncStatus('已从云端拉取最新数据', 'ok');
+      // 把本地独有改动（如离线新增）推回云端；本地为空时 pushAll 会自动跳过，防止冲空
       pushAll();
-      syncStatus('已用本地数据修复云端同步', 'ok');
       if (forceReload){
         const activePage = document.querySelector('.page.active');
         storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
         setTimeout(() => location.reload(), 1500);
       }
-      return true;
-    }
-    // 仅当本地确实为空时，才从云端拉取数据
-    applyRemoteData(data);
-    syncCfg.connected = true;
-    storage.set('cloudsync', syncCfg);
-    syncStatus('已从云端拉取数据', 'ok');
-    if (forceReload){
-      const activePage = document.querySelector('.page.active');
-      storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
-      setTimeout(() => location.reload(), 1500);
+    } else {
+      // 云端与本地一致：无需刷新，仅确认连接态
+      syncCfg.connected = true;
+      storage.set('cloudsync', syncCfg);
+      syncStatus('已是最新', 'ok');
     }
     return true;
   }
