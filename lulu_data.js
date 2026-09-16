@@ -1,4 +1,4 @@
-window.__LULU_SNAPSHOT = {"wb_app_v":20260916105308,"wb_lulu_word_cursor":{"date":"2026-9-16","start":0},"wb_autopush_2026-9-16":{"v":6,"date":"2026-9-16","words":[{"en":"implement","zh":"实施，执行","pos":"v.","example":"We need to implement the new policy.","phonetic":"/ˈɪmplɪment/","exampleCn":"我们需要执行这项新政策。"},{"en":"significant","zh":"重要的，显著的","pos":"adj.","example":"There has been a significant improvement.","phonetic":"/sɪɡˈnɪfɪkənt/","exampleCn":"已经有了显著的改善。"},{"en":"evaluate","zh":"评估，评价","pos":"v.","example":"Let's evaluate the results carefully.","phonetic":"/ɪˈvæljueɪt/","exampleCn":"让我们仔细评估结果。"},{"en":"collaborate","zh":"合作，协作","pos":"v.","example":"We should collaborate on this project.","phonetic":"/kəˈlæbəreɪt/","exampleCn":"我们应该在这个项目上合作。"},{"en":"innovative","zh":"创新的","pos":"adj.","example":"This is an innovative solution.","phonetic":"/ˈɪnəveɪtɪv/","exampleCn":"这是一个创新的解决方案。"}],"newsOff":1,"quoteIdx":19,"briefPage":0,"quoteClick":0}};
+window.__LULU_SNAPSHOT = {};
 (function(){
   try {
     var s = window.__LULU_SNAPSHOT || {};
