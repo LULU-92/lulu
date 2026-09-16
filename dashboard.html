@@ -1707,11 +1707,21 @@ function autoConnect(){
   doConnect(syncCfg.url, syncCfg.key, syncCfg.uid, true);
 }
 
+// 不参与跨端同步的"自动状态键"：这些是单设备本地的游标/当天缓存，多端各自独立，
+// 若混入同步会导致两端永远"有差异"、频繁覆盖或互相污染。
+function isSyncExcludedKey(k){
+  if (!k || !k.startsWith('wb_')) return false;
+  if (k === 'wb_app_v') return true;              // 废弃的版本号残留
+  if (k === 'wb_lulu_word_cursor') return true;   // 每日单词游标（每设备独立）
+  if (k.startsWith('wb_autopush_')) return true;  // 当天"换一批"自动推送状态（每设备独立）
+  return false;
+}
+
 function collectLocalData(){
   const data = {};
   for (let i=0;i<localStorage.length;i++){
     const k = localStorage.key(i);
-    if (k && k.startsWith('wb_')){
+    if (k && k.startsWith('wb_') && !isSyncExcludedKey(k)){
       try { data[k] = JSON.parse(localStorage.getItem(k)); } catch(e){}
     }
   }
@@ -1727,7 +1737,7 @@ function stableStringify(v){
 
 function applyRemoteData(remote){
   if (!remote || !remote.data) return;
-  Object.keys(remote.data).forEach(k => { if (k.startsWith('wb_')) localStorage.setItem(k, JSON.stringify(remote.data[k])); });
+  Object.keys(remote.data).forEach(k => { if (k.startsWith('wb_') && !isSyncExcludedKey(k)) localStorage.setItem(k, JSON.stringify(remote.data[k])); });
 }
 
 function pushAll(){
