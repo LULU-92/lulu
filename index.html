@@ -1711,6 +1711,13 @@ function collectLocalData(){
   return data;
 }
 
+// 键序无关的序列化：仅用于"云端 vs 本地"语义比较（jsonb 键序重排不算数据变化）
+function stableStringify(v){
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+}
+
 function applyRemoteData(remote){
   if (!remote || !remote.data) return;
   Object.keys(remote.data).forEach(k => { if (k.startsWith('wb_')) localStorage.setItem(k, JSON.stringify(remote.data[k])); });
@@ -1757,11 +1764,23 @@ async function pullCloud(autoReload){
         // 用户正在输入框打字 → 推迟到下一轮，避免就地重绘冲掉正在输入的内容
         const ae = document.activeElement;
         if (autoReload && ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){ syncPulling = false; return; }
-        applyRemoteData({ data: data.data });
+        // 语义比较：Supabase jsonb 返回时会重排对象键序，"推送回声"会表现成指纹不一致；
+        // 若云端与本地内容实际相同，只更新指纹、绝不重绘 → 根治"每 30 秒自己刷新一次"
+        const local = collectLocalData();
+        const cKeys = Object.keys(data.data);
+        let remoteChanged = cKeys.length !== Object.keys(local).length;
+        if (!remoteChanged){
+          for (const k of cKeys){
+            if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
+          }
+        }
+        if (remoteChanged){
+          applyRemoteData({ data: data.data });
+          // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
+          reloadState();
+          renderActivePage();
+        }
         try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
-        // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
-        reloadState();
-        renderActivePage();
       }
     }
   } catch(e){}
@@ -2183,7 +2202,8 @@ function newsSearchUrl(title) {
 // 将 analysis 文本（每行 【利好】🟢 ... 格式）渲染为对齐的行
 function renderInsight(text) {
   if (!text) return '';
-  const lines = String(text).split('\n').map(s => s.trim()).filter(Boolean);
+  // 归一化：兼容自动化写入的字面 \n（反斜杠+n）与真实换行，防止整条见解挤成一行
+  const lines = String(text).replace(/\\n/g, '\n').split('\n').map(s => s.trim()).filter(Boolean);
   if (!lines.length) return '';
   const colMap = { '🟢': '#3B6D11', '🔴': '#A32D2D', '💡': '#BA7517', '🟡': '#854F0B' };
   let rows = '';
