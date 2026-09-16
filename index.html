@@ -1754,12 +1754,14 @@ async function pullCloud(autoReload){
       if (cloudJson !== lastJson){
         // 本地还有编辑未推送完 → 本轮先不拉，避免覆盖
         if (syncTimer){ syncPulling = false; return; }
-        // 用户正在输入框打字 → 推迟到下一轮，避免刷新打断
+        // 用户正在输入框打字 → 推迟到下一轮，避免就地重绘冲掉正在输入的内容
         const ae = document.activeElement;
         if (autoReload && ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){ syncPulling = false; return; }
         applyRemoteData({ data: data.data });
         try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
-        if (autoReload) location.reload();
+        // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
+        reloadState();
+        renderActivePage();
       }
     }
   } catch(e){}
@@ -1771,6 +1773,43 @@ function startSyncPoll(){
   // 切回标签页/窗口聚焦时立即拉一次，体感接近实时
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pullCloud(true); });
   window.addEventListener('focus', () => pullCloud(true));
+}
+
+// ---- 同步后界面刷新：重新读取内存变量并就地重绘（不再依赖整页 reload） ----
+function reloadState(){
+  todos = storage.get('todos', []);
+  workLogs = storage.get('workLogs', []);
+  weights = storage.get('weights', []);
+  foods = storage.get('foods', []);
+  exercises = storage.get('exercises', []);
+  goals = storage.get('goals', { currentWeight: null, targetWeight: null, height: null, age: null, sex: 'female', activity: 1.55, dailyCalories: null, startDate: null, endDate: null });
+  pFinances = storage.get('pFinances', []);
+  tFinances = storage.get('tFinances', []);
+  pBudgetVal = storage.get('pBudget', 0);
+  tBudgetVal = storage.get('tBudget', 0);
+  itineraries = storage.get('itineraries', []);
+  foodColl = storage.get('foodColl', []);
+  attractions = storage.get('attractions', []);
+  notes = storage.get('notes', []);
+  avatarImg = storage.get('avatar', '');
+  currentMood = storage.get('mood', '');
+}
+function renderPage(pageName){
+  initAvatar();
+  if (pageName === 'plans') { renderTodos(); }
+  else if (pageName === 'work') { renderWorkLogs(); }
+  else if (pageName === 'health') { renderWeightChart(); renderFoods(); renderExercises(); }
+  else if (pageName === 'finance') { refreshFinance('p'); refreshFinance('t'); }
+  else if (pageName === 'notes') { renderNotes(); renderNoteSuggest(); }
+  else if (pageName === 'travel') { renderTravel(editingTravelCat || 'itinerary'); }
+  else if (pageName === 'push') { renderDailyBriefing(); renderNews(); renderHistory(); }
+  else if (pageName === 'words') { renderWords(); }
+  else { renderTodos(); }
+}
+function renderActivePage(){
+  const active = document.querySelector('.page.active');
+  const id = active ? active.id.replace('page-','') : 'plans';
+  renderPage(id);
 }
 
 async function doConnect(url, key, uid, forceReload=false){
@@ -1866,14 +1905,7 @@ function importData(file){
 $('#headerDate').textContent = new Date().toLocaleDateString('zh-CN', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
 $$('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.nav-item').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    $$('.page').forEach(p => p.classList.remove('active'));
-    $('#page-' + btn.dataset.page).classList.add('active');
-    if (btn.dataset.page === 'health') renderWeightChart();
-    closeDrawer();
-  });
+  btn.addEventListener('click', () => { switchPage(btn.dataset.page); });
 });
 
 function openDrawer() {
@@ -1893,7 +1925,9 @@ function switchPage(pageName){
   if (btn) btn.classList.add('active');
   $$('.page').forEach(p => p.classList.remove('active'));
   $('#page-' + pageName).classList.add('active');
-  if (pageName === 'health') renderWeightChart();
+  // 切到某页时，先从"云端同步后的最新 localStorage"重读内存变量，再重绘该页（保证跨端改动可见）
+  reloadState();
+  renderPage(pageName);
   closeDrawer();
 }
 
