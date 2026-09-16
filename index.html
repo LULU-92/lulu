@@ -1617,26 +1617,12 @@ const storage = {
   set(k, v) { localStorage.setItem('wb_'+k, JSON.stringify(v)); scheduleSync(); }
 };
 
-// ==================== 自动检测新版本并刷新（解决主屏幕快捷方式缓存旧版不更新） ====================
-(function(){
-  function checkNewVersion(){
-    try {
-      fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.json())
-        .then(j => {
-          const v = j && j.v;
-          if (!v) return;
-          const lv = localStorage.getItem('wb_app_v');
-          if (lv && lv !== v) { location.reload(true); }
-          else { localStorage.setItem('wb_app_v', v); }
-        })
-        .catch(() => {});
-    } catch(e) { /* 忽略：离线或文件不存在时不强制刷新 */ }
-  }
-  if (document.readyState !== 'loading') checkNewVersion();
-  else document.addEventListener('DOMContentLoaded', checkNewVersion);
-  document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkNewVersion(); });
-})();
+// ==================== 版本检测（已停用自动强刷，避免"疯狂刷新"） ====================
+// 原逻辑：version.json 的 v 每次构建都变（gen_snapshot.py 写时间戳），
+// 前端 checkNewVersion 检测到变化就 location.reload(true) 整页强刷；
+// 而 version.json 每次同步脚本推送前都会被重写 → 版本号恒变 → 客户端反复强刷。
+// 且 wb_app_v 用了 wb_ 前缀，会被 Supabase 同步污染，多端冲突。
+// 结论：彻底移除自动强刷；如需更新，用户手动下拉刷新即可。
 
 // ==================== 云端同步 (Supabase) ====================
 // 已为用户预置好云端配置（多设备共用同一同步ID，保证数据互通）
