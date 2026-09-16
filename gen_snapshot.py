@@ -59,11 +59,9 @@ def main():
   } catch(e) { window.__LULU_SNAP_ERR = String(e); }
 })();
 """)
-    # 版本标记：每次构建写入 version.json（含构建时间），供前端检测新版本自动刷新
-    ver_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
-    with open(ver_path, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"v": datetime.datetime.now().strftime("%Y%m%d%H%M%S")}, ensure_ascii=False))
-    print(f"OK: wrote {len(snap)} keys (self-applying) + version.json -> {out_path}")
+    # 版本标记已停用：前端已移除"检测 version.json 自动强刷"逻辑（避免每次构建变版本号导致疯狂刷新），
+    # 故不再写入 version.json，保持线上文件稳定。
+    print(f"OK: wrote {len(snap)} keys (self-applying) -> {out_path}")
 
 
 if __name__ == "__main__":
