@@ -1614,7 +1614,12 @@ const today = () => new Date().toISOString().split('T')[0];
 const fmt = (n) => Number(n).toLocaleString('zh-CN', {minimumFractionDigits:0,maximumFractionDigits:2});
 const storage = {
   get(k, d) { try { const v = localStorage.getItem('wb_'+k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set(k, v) { localStorage.setItem('wb_'+k, JSON.stringify(v)); scheduleSync(); }
+  set(k, v) {
+    localStorage.setItem('wb_'+k, JSON.stringify(v));
+    // 持久化"脏标记"：记录本地有待推送的改动，刷新后仍可识别（避免刷新丢失待推送状态被旧云端覆盖）
+    if (k !== 'cloudsync' && k !== 'app_v') { try { localStorage.setItem('__lulu_dirty', '1'); } catch(e){} }
+    scheduleSync();
+  }
 };
 
 // ==================== 版本检测（已停用自动强刷，避免"疯狂刷新"） ====================
@@ -1739,6 +1744,8 @@ function pushAll(){
     else {
       // 记录"云端指纹"= 我们刚推上去的内容，这样轮询时不会把自己推的数据误判为远端更新
       try { localStorage.setItem('lulu_last_cloud_sync', JSON.stringify(payload.data)); } catch(e){}
+      // 推送成功 → 清除脏标记
+      try { localStorage.removeItem('__lulu_dirty'); } catch(e){}
       syncStatus('已同步 · ' + new Date().toLocaleTimeString('zh-CN'), 'ok');
     }
   }).catch(e => syncStatus('同步失败：' + e.message, 'err'));
@@ -1761,8 +1768,12 @@ async function pullCloud(autoReload){
       const cloudJson = JSON.stringify(data.data);
       const lastJson = localStorage.getItem('lulu_last_cloud_sync') || '';
       if (cloudJson !== lastJson){
-        // 本地还有编辑未推送完 → 本轮先不拉，避免覆盖
-        if (syncTimer){ syncPulling = false; return; }
+        // 本地还有编辑未推送完 → 本轮先推送（本地为准），不拉云端旧数据覆盖本地
+        if (syncTimer || localStorage.getItem('__lulu_dirty') === '1'){
+          syncPulling = false;
+          pushAll();
+          return;
+        }
         // 用户正在输入框打字 → 推迟到下一轮，避免刷新打断
         const ae = document.activeElement;
         if (autoReload && ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){ syncPulling = false; return; }
@@ -1849,9 +1860,28 @@ async function doConnect(url, key, uid, forceReload=false){
   }
   if (data && data.data){
     const cloudJson = JSON.stringify(data.data);
-    const lastJson = localStorage.getItem('lulu_last_cloud_sync') || '';
-    if (cloudJson !== lastJson){
-      // 云端有更新：拉取并合并到本地（恢复"打开即最新"的实时体验）
+    // 本地是否有"刚编辑、还没推送完"的改动（用持久化脏标记，刷新后仍有效）
+    const hasPendingPush = !!syncTimer || localStorage.getItem('__lulu_dirty') === '1';
+    // 语义比较（键序无关）：Supabase jsonb 返回会重排键序，用 stableStringify 避免误判
+    const local = collectLocalData();
+    const cKeys = Object.keys(data.data);
+    let remoteChanged = cKeys.length !== Object.keys(local).length;
+    if (!remoteChanged){
+      for (const k of cKeys){
+        if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
+      }
+    }
+    if (remoteChanged && hasPendingPush){
+      // 本地还有未推送的编辑 → 先推送到云端（本地为准），不覆盖本地；
+      // 否则"编辑后立刻刷新"会拉到旧云端、把刚编辑的新内容冲掉（表现为"内容没了"）。
+      pushAll();
+      syncCfg.connected = true;
+      storage.set('cloudsync', syncCfg);
+      syncStatus('本地有未同步改动，已优先推送', 'ok');
+      return true;
+    }
+    if (remoteChanged){
+      // 云端语义上真有变化：拉取并合并到本地（恢复"打开即最新"的实时体验）
       applyRemoteData(data);
       try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
       syncCfg.connected = true;
@@ -1872,6 +1902,7 @@ async function doConnect(url, key, uid, forceReload=false){
       // 云端与本地一致：无需刷新，仅确认连接态
       syncCfg.connected = true;
       storage.set('cloudsync', syncCfg);
+      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
       syncStatus('已是最新', 'ok');
     }
     return true;
