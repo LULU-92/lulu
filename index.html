@@ -1616,8 +1616,16 @@ const storage = {
   get(k, d) { try { const v = localStorage.getItem('wb_'+k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
   set(k, v) {
     localStorage.setItem('wb_'+k, JSON.stringify(v));
-    // 持久化"脏标记"：记录本地有待推送的改动，刷新后仍可识别（避免刷新丢失待推送状态被旧云端覆盖）
-    if (k !== 'cloudsync' && k !== 'app_v') { try { localStorage.setItem('__lulu_dirty', '1'); } catch(e){} }
+    // 记录该键的"最后修改时间戳"到元数据（用于逐键合并，防止旧设备旧数据冲掉新数据）
+    if (!isSyncExcludedKey('wb_'+k) && k !== 'cloudsync' && k !== 'app_v') {
+      try {
+        const meta = JSON.parse(localStorage.getItem('__lulu_meta') || '{}');
+        meta[k] = Date.now();
+        localStorage.setItem('__lulu_meta', JSON.stringify(meta));
+      } catch(e){}
+      // 持久化"脏标记"：记录本地有待推送的改动，刷新后仍可识别（避免刷新丢失待推送状态被旧云端覆盖）
+      try { localStorage.setItem('__lulu_dirty', '1'); } catch(e){}
+    }
     scheduleSync();
   }
 };
@@ -1714,6 +1722,10 @@ function isSyncExcludedKey(k){
   if (k === 'wb_app_v') return true;              // 废弃的版本号残留
   if (k === 'wb_lulu_word_cursor') return true;   // 每日单词游标（每设备独立）
   if (k.startsWith('wb_autopush_')) return true;  // 当天"换一批"自动推送状态（每设备独立）
+  if (k === 'wb_cloudsync') return true;          // 同步配置（含每端独立 connected 状态，混入会污染比对）
+  if (k === 'wb_zhipuKey') return true;           // AI key（每设备独立）
+  if (k === 'wb_lastAutoReport') return true;     // 周报自动生成状态（每设备独立）
+  if (k === 'wb_last_page') return true;          // 当前页面游标（每设备独立）
   return false;
 }
 
@@ -1737,7 +1749,26 @@ function stableStringify(v){
 
 function applyRemoteData(remote){
   if (!remote || !remote.data) return;
-  Object.keys(remote.data).forEach(k => { if (k.startsWith('wb_') && !isSyncExcludedKey(k)) localStorage.setItem(k, JSON.stringify(remote.data[k])); });
+  const remoteMeta = (remote.meta && typeof remote.meta === 'object') ? remote.meta : null;
+  let localMeta = {};
+  try { localMeta = JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){}
+  Object.keys(remote.data).forEach(k => {
+    if (!k.startsWith('wb_') || isSyncExcludedKey(k)) return;
+    const bare = k.slice(3); // 去掉 wb_ 前缀，得到 storage 键名
+    // ★ 逐键合并（防旧数据冲新数据）：
+    // 只有当「云端该键的时间戳 > 本地该键的时间戳」时才覆盖本地。
+    // 若云端没有时间戳（旧数据/旧版本推送），或本地更新，则保留本地、不覆盖。
+    const rt = remoteMeta ? (remoteMeta[bare] || 0) : 0;
+    const lt = localMeta[bare] || 0;
+    if (rt > 0 && rt > lt) {
+      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+      localMeta[bare] = rt;
+    } else if (rt === 0 && !localStorage.getItem(k)) {
+      // 云端无时间戳且本地根本没有该键 → 首次载入，直接采纳云端
+      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+    }
+  });
+  try { localStorage.setItem('__lulu_meta', JSON.stringify(localMeta)); } catch(e){}
 }
 
 function pushAll(){
@@ -1748,7 +1779,12 @@ function pushAll(){
     syncStatus('本地无用户数据，已跳过上传（保护云端）', 'warn');
     return;
   }
-  const payload = { id: syncCfg.uid, data: collectLocalData(), updated_at: new Date().toISOString() };
+  const payload = {
+    id: syncCfg.uid,
+    data: collectLocalData(),
+    meta: (function(){ try { return JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){ return {}; } })(),
+    updated_at: new Date().toISOString()
+  };
   syncClient.from('lulu_data').upsert(payload).then(({error}) => {
     if (error) syncStatus('同步失败：' + error.message, 'err');
     else {
@@ -1773,7 +1809,7 @@ async function pullCloud(autoReload){
   if (!syncCfg.connected || !syncClient || syncPulling) return;
   syncPulling = true;
   try {
-    const { data, error } = await syncClient.from('lulu_data').select('data').eq('id', syncCfg.uid).single();
+    const { data, error } = await syncClient.from('lulu_data').select('data,meta').eq('id', syncCfg.uid).single();
     if (!error && data && data.data){
       const cloudJson = JSON.stringify(data.data);
       const lastJson = localStorage.getItem('lulu_last_cloud_sync') || '';
@@ -1798,7 +1834,7 @@ async function pullCloud(autoReload){
           }
         }
         if (remoteChanged){
-          applyRemoteData({ data: data.data });
+          applyRemoteData({ data: data.data, meta: data.meta });
           // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
           reloadState();
           renderActivePage();
@@ -1904,7 +1940,7 @@ async function doConnect(url, key, uid, forceReload=false){
           syncStatus('已从云端拉取最新数据', 'ok');
         } else {
           const activePage = document.querySelector('.page.active');
-          storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
+          storage.set('last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
           setTimeout(() => location.reload(), 1500);
         }
       }
@@ -5161,9 +5197,9 @@ function init() {
   $('#foodScanModal').addEventListener('click', function(e) { if (e.target === this) closeFoodScan(); });
 
   // 若上次同步/导入后要求恢复页面，则切回去并提示
-  const lastPage = storage.get('wb_last_page', '');
+  const lastPage = storage.get('last_page', '');
   if (lastPage) {
-    storage.set('wb_last_page', '');
+    storage.set('last_page', '');
     switchPage(lastPage);
     if (lastPage === 'settings') setTimeout(() => syncStatus('云端数据已恢复，可继续使用', 'ok'), 300);
   }
