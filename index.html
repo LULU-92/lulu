@@ -1748,30 +1748,38 @@ function stableStringify(v){
 }
 
 function applyRemoteData(remote){
-  if (!remote || !remote.data) return;
+  if (!remote || !remote.data) return false;
   const remoteMeta = (remote.meta && typeof remote.meta === 'object') ? remote.meta : null;
   let localMeta = {};
   try { localMeta = JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){}
+  let changed = false; // 是否真的覆盖了本地任何键（供调用方决定是否重绘，避免"内容不同但没落地"→反复重绘抖动）
   Object.keys(remote.data).forEach(k => {
     if (!k.startsWith('wb_') || isSyncExcludedKey(k)) return;
     const bare = k.slice(3); // 去掉 wb_ 前缀，得到 storage 键名
-    // ★ 逐键合并（防旧数据冲新数据）：
-    // 只有当「云端该键的时间戳 > 本地该键的时间戳」时才覆盖本地。
-    // 若云端没有时间戳（旧数据/旧版本推送），或本地更新，则保留本地、不覆盖。
     const rt = remoteMeta ? (remoteMeta[bare] || 0) : 0;
     const lt = localMeta[bare] || 0;
-    if (rt > 0 && rt > lt) {
+    const localHas = localStorage.getItem(k) !== null;
+    // ★ 逐键合并（防旧数据冲新数据）：
+    // 1) 本地根本没有该键 → 无条件采纳云端（无论云端有无 meta）。修复"电脑新增新键，手机看不到"。
+    // 2) 云端时间戳 > 本地时间戳 → 云端更新，覆盖本地。
+    // 3) 其余（本地较新、或云端无 meta 且本地已有）→ 保留本地，不采纳。
+    if (!localHas) {
+      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+      if (rt > 0) localMeta[bare] = rt;
+      changed = true;
+    } else if (rt > 0 && rt > lt) {
       localStorage.setItem(k, JSON.stringify(remote.data[k]));
       localMeta[bare] = rt;
-    } else if (rt === 0 && !localStorage.getItem(k)) {
-      // 云端无时间戳且本地根本没有该键 → 首次载入，直接采纳云端
-      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+      changed = true;
     }
   });
-  try { localStorage.setItem('__lulu_meta', JSON.stringify(localMeta)); } catch(e){}
+  if (changed) {
+    try { localStorage.setItem('__lulu_meta', JSON.stringify(localMeta)); } catch(e){}
+  }
+  return changed;
 }
 
-function pushAll(){
+async function pushAll(){
   if (!syncCfg.connected || !syncClient) return;
   syncTimer = null; // 已到推送时机，清除"待推送"标记
   // 关键保险：本地没有任何用户数据时，绝不上传，避免把云端真实数据清空
@@ -1779,10 +1787,45 @@ function pushAll(){
     syncStatus('本地无用户数据，已跳过上传（保护云端）', 'warn');
     return;
   }
+  const localData = collectLocalData();
+  const localMeta = (function(){ try { return JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){ return {}; } })();
+  // ★ 关键修复：先读云端 meta，只推送「本地 meta 时间戳 > 云端 meta 时间戳」的键（含云端没有的新键）。
+  // 否则整表 upsert 会把本端旧数据盖掉云端新数据，导致"电脑新增→手机看不到"（互相冲）。
+  let cloudMeta = {};
+  let cloudData = {};
+  try {
+    const { data: row, error } = await syncClient.from('lulu_data').select('data,meta').eq('id', syncCfg.uid).single();
+    if (!error && row) {
+      cloudData = row.data || {};
+      cloudMeta = (row.meta && typeof row.meta === 'object') ? row.meta : {};
+    }
+  } catch(e){}
+  const mergedData = {};   // 合并后要写入云端的完整 data（本端较新的键覆盖，其余保留云端）
+  const mergedMeta = {};   // 合并后要写入云端的完整 meta
+  // 1) 先把云端所有键原样保留
+  Object.keys(cloudData).forEach(k => { mergedData[k] = cloudData[k]; });
+  Object.keys(cloudMeta).forEach(k => { mergedMeta[k] = cloudMeta[k]; });
+  // 2) 再用"本地较新"的键覆盖（本地无云端有的键且本地 meta 更新 → 覆盖；本地有云端没有的新键 → 新增）
+  Object.keys(localData).forEach(k => {
+    const bare = k.slice(3);
+    const lt = localMeta[bare] || 0;
+    const ct = cloudMeta[bare] || 0;
+    const cloudHas = Object.prototype.hasOwnProperty.call(cloudData, k);
+    if (!cloudHas) {
+      // 云端没有这个键 → 本地新增，直接写入
+      mergedData[k] = localData[k];
+      if (lt > 0) mergedMeta[bare] = lt;
+    } else if (lt > 0 && lt > ct) {
+      // 本地较新 → 覆盖
+      mergedData[k] = localData[k];
+      mergedMeta[bare] = lt;
+    }
+    // 其余（本地旧 / 本地无 meta）→ 保留云端，不覆盖
+  });
   const payload = {
     id: syncCfg.uid,
-    data: collectLocalData(),
-    meta: (function(){ try { return JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){ return {}; } })(),
+    data: mergedData,
+    meta: mergedMeta,
     updated_at: new Date().toISOString()
   };
   syncClient.from('lulu_data').upsert(payload).then(({error}) => {
@@ -1823,18 +1866,11 @@ async function pullCloud(autoReload){
         // 用户正在输入框打字 → 推迟到下一轮，避免刷新打断
         const ae = document.activeElement;
         if (autoReload && ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){ syncPulling = false; return; }
-        // 语义比较：Supabase jsonb 返回时会重排对象键序，"推送回声"会表现成指纹不一致；
-        // 若云端与本地内容实际相同，只更新指纹、绝不重绘 → 根治"每 30 秒自己刷新一次"
-        const local = collectLocalData();
-        const cKeys = Object.keys(data.data);
-        let remoteChanged = cKeys.length !== Object.keys(local).length;
-        if (!remoteChanged){
-          for (const k of cKeys){
-            if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
-          }
-        }
-        if (remoteChanged){
-          applyRemoteData({ data: data.data, meta: data.meta });
+        // ★ 关键修复：以「applyRemoteData 是否真的落地覆盖了本地」为准决定是否重绘，
+        // 而不是以「云端内容 vs 本地内容是否不同」为准。后者会导致：内容确实不同，
+        // 但逐键时间戳合并判定"本地较新、保留本地"时，界面仍被反复重绘 → 原地抖动。
+        const didApply = applyRemoteData({ data: data.data, meta: data.meta });
+        if (didApply){
           // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
           reloadState();
           renderActivePage();
@@ -1908,30 +1944,22 @@ async function doConnect(url, key, uid, forceReload=false){
     const cloudJson = JSON.stringify(data.data);
     // 本地是否有"刚编辑、还没推送完"的改动（用持久化脏标记，刷新后仍有效）
     const hasPendingPush = !!syncTimer || localStorage.getItem('__lulu_dirty') === '1';
-    // 语义比较（键序无关）：Supabase jsonb 返回会重排键序，用 stableStringify 避免误判
-    const local = collectLocalData();
-    const cKeys = Object.keys(data.data);
-    let remoteChanged = cKeys.length !== Object.keys(local).length;
-    if (!remoteChanged){
-      for (const k of cKeys){
-        if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
-      }
-    }
-    if (remoteChanged && hasPendingPush){
-      // 本地还有未推送的编辑 → 先推送到云端（本地为准），不覆盖本地；
-      // 否则"编辑后立刻刷新"会拉到旧云端、把刚编辑的新内容冲掉（表现为"内容没了"）。
+    if (hasPendingPush){
+      // 本地还有未推送的编辑 → 只推本地较新的键（pushAll 内部逐键比 meta），
+      // 绝不整表覆盖云端，否则会冲掉另一端刚上传的新增数据。
       pushAll();
       syncCfg.connected = true;
       storage.set('cloudsync', syncCfg);
       syncStatus('本地有未同步改动，已优先推送', 'ok');
       return true;
     }
-    if (remoteChanged){
-      // 云端语义上真有变化：拉取并合并到本地（恢复"打开即最新"的实时体验）
-      applyRemoteData(data);
-      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
-      syncCfg.connected = true;
-      storage.set('cloudsync', syncCfg);
+    // ★ 关键修复：打开时用逐键合并（applyRemoteData）而非"内容不同就 reload"。
+    // 合并后只有「真的采纳了云端数据」才就地重绘；绝不整页 location.reload()。
+    const didApply = applyRemoteData(data);
+    try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
+    syncCfg.connected = true;
+    storage.set('cloudsync', syncCfg);
+    if (didApply){
       syncStatus('已从云端拉取最新数据', 'ok');
       if (forceReload){
         const ae = document.activeElement;
@@ -1939,16 +1967,12 @@ async function doConnect(url, key, uid, forceReload=false){
           // 用户正在输入 → 不强行刷新，等下次轮询/切回页面时再校准，避免冲掉正在写的内容
           syncStatus('已从云端拉取最新数据', 'ok');
         } else {
-          const activePage = document.querySelector('.page.active');
-          storage.set('last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
-          setTimeout(() => location.reload(), 1500);
+          reloadState();
+          renderActivePage();
         }
       }
     } else {
-      // 云端与本地一致：无需刷新，仅确认连接态
-      syncCfg.connected = true;
-      storage.set('cloudsync', syncCfg);
-      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
+      // 云端与本地一致（或本地较新无需采纳）：仅确认连接态，绝不重绘 → 根治"打开即原地抖动"
       syncStatus('已是最新', 'ok');
     }
     return true;
