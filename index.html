@@ -1409,10 +1409,15 @@ tr:hover td { background: var(--bg); }
         <pre style="background:var(--bg);padding:10px;border-radius:8px;margin-top:8px;overflow:auto;white-space:pre" data-page-node-id="nFtQqG3ZUR3Z3YC4WBfcQP">create table lulu_data (
   id text primary key,
   data jsonb,
+  meta jsonb default '{}'::jsonb,
   updated_at timestamptz default now()
 );
 alter table lulu_data enable row level security;
-create policy "allow all" on lulu_data for all using (true) with check (true);</pre>
+create policy "allow all" on lulu_data for all using (true) with check (true);
+
+-- 已有旧表时补 meta 列（可重复执行，无副作用）:
+alter table lulu_data add column if not exists meta jsonb default '{}'::jsonb;
+notify pgrst, 'reload schema';</pre>
       </details>
     </div>
 
