@@ -1409,10 +1409,15 @@ tr:hover td { background: var(--bg); }
         <pre style="background:var(--bg);padding:10px;border-radius:8px;margin-top:8px;overflow:auto;white-space:pre" data-page-node-id="nFtQqG3ZUR3Z3YC4WBfcQP">create table lulu_data (
   id text primary key,
   data jsonb,
+  meta jsonb default '{}'::jsonb,
   updated_at timestamptz default now()
 );
 alter table lulu_data enable row level security;
-create policy "allow all" on lulu_data for all using (true) with check (true);</pre>
+create policy "allow all" on lulu_data for all using (true) with check (true);
+
+-- 已有旧表时补 meta 列（可重复执行，无副作用）:
+alter table lulu_data add column if not exists meta jsonb default '{}'::jsonb;
+notify pgrst, 'reload schema';</pre>
       </details>
     </div>
 
@@ -1616,8 +1621,16 @@ const storage = {
   get(k, d) { try { const v = localStorage.getItem('wb_'+k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
   set(k, v) {
     localStorage.setItem('wb_'+k, JSON.stringify(v));
-    // 持久化"脏标记"：记录本地有待推送的改动，刷新后仍可识别（避免刷新丢失待推送状态被旧云端覆盖）
-    if (k !== 'cloudsync' && k !== 'app_v') { try { localStorage.setItem('__lulu_dirty', '1'); } catch(e){} }
+    // 记录该键的"最后修改时间戳"到元数据（用于逐键合并，防止旧设备旧数据冲掉新数据）
+    if (!isSyncExcludedKey('wb_'+k) && k !== 'cloudsync' && k !== 'app_v') {
+      try {
+        const meta = JSON.parse(localStorage.getItem('__lulu_meta') || '{}');
+        meta[k] = Date.now();
+        localStorage.setItem('__lulu_meta', JSON.stringify(meta));
+      } catch(e){}
+      // 持久化"脏标记"：记录本地有待推送的改动，刷新后仍可识别（避免刷新丢失待推送状态被旧云端覆盖）
+      try { localStorage.setItem('__lulu_dirty', '1'); } catch(e){}
+    }
     scheduleSync();
   }
 };
@@ -1714,6 +1727,10 @@ function isSyncExcludedKey(k){
   if (k === 'wb_app_v') return true;              // 废弃的版本号残留
   if (k === 'wb_lulu_word_cursor') return true;   // 每日单词游标（每设备独立）
   if (k.startsWith('wb_autopush_')) return true;  // 当天"换一批"自动推送状态（每设备独立）
+  if (k === 'wb_cloudsync') return true;          // 同步配置（含每端独立 connected 状态，混入会污染比对）
+  if (k === 'wb_zhipuKey') return true;           // AI key（每设备独立）
+  if (k === 'wb_lastAutoReport') return true;     // 周报自动生成状态（每设备独立）
+  if (k === 'wb_last_page') return true;          // 当前页面游标（每设备独立）
   return false;
 }
 
@@ -1736,11 +1753,38 @@ function stableStringify(v){
 }
 
 function applyRemoteData(remote){
-  if (!remote || !remote.data) return;
-  Object.keys(remote.data).forEach(k => { if (k.startsWith('wb_') && !isSyncExcludedKey(k)) localStorage.setItem(k, JSON.stringify(remote.data[k])); });
+  if (!remote || !remote.data) return false;
+  const remoteMeta = (remote.meta && typeof remote.meta === 'object') ? remote.meta : null;
+  let localMeta = {};
+  try { localMeta = JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){}
+  let changed = false; // 是否真的覆盖了本地任何键（供调用方决定是否重绘，避免"内容不同但没落地"→反复重绘抖动）
+  Object.keys(remote.data).forEach(k => {
+    if (!k.startsWith('wb_') || isSyncExcludedKey(k)) return;
+    const bare = k.slice(3); // 去掉 wb_ 前缀，得到 storage 键名
+    const rt = remoteMeta ? (remoteMeta[bare] || 0) : 0;
+    const lt = localMeta[bare] || 0;
+    const localHas = localStorage.getItem(k) !== null;
+    // ★ 逐键合并（防旧数据冲新数据）：
+    // 1) 本地根本没有该键 → 无条件采纳云端（无论云端有无 meta）。修复"电脑新增新键，手机看不到"。
+    // 2) 云端时间戳 > 本地时间戳 → 云端更新，覆盖本地。
+    // 3) 其余（本地较新、或云端无 meta 且本地已有）→ 保留本地，不采纳。
+    if (!localHas) {
+      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+      if (rt > 0) localMeta[bare] = rt;
+      changed = true;
+    } else if (rt > 0 && rt > lt) {
+      localStorage.setItem(k, JSON.stringify(remote.data[k]));
+      localMeta[bare] = rt;
+      changed = true;
+    }
+  });
+  if (changed) {
+    try { localStorage.setItem('__lulu_meta', JSON.stringify(localMeta)); } catch(e){}
+  }
+  return changed;
 }
 
-function pushAll(){
+async function pushAll(){
   if (!syncCfg.connected || !syncClient) return;
   syncTimer = null; // 已到推送时机，清除"待推送"标记
   // 关键保险：本地没有任何用户数据时，绝不上传，避免把云端真实数据清空
@@ -1748,7 +1792,47 @@ function pushAll(){
     syncStatus('本地无用户数据，已跳过上传（保护云端）', 'warn');
     return;
   }
-  const payload = { id: syncCfg.uid, data: collectLocalData(), updated_at: new Date().toISOString() };
+  const localData = collectLocalData();
+  const localMeta = (function(){ try { return JSON.parse(localStorage.getItem('__lulu_meta') || '{}'); } catch(e){ return {}; } })();
+  // ★ 关键修复：先读云端 meta，只推送「本地 meta 时间戳 > 云端 meta 时间戳」的键（含云端没有的新键）。
+  // 否则整表 upsert 会把本端旧数据盖掉云端新数据，导致"电脑新增→手机看不到"（互相冲）。
+  let cloudMeta = {};
+  let cloudData = {};
+  try {
+    const { data: row, error } = await syncClient.from('lulu_data').select('data,meta').eq('id', syncCfg.uid).single();
+    if (!error && row) {
+      cloudData = row.data || {};
+      cloudMeta = (row.meta && typeof row.meta === 'object') ? row.meta : {};
+    }
+  } catch(e){}
+  const mergedData = {};   // 合并后要写入云端的完整 data（本端较新的键覆盖，其余保留云端）
+  const mergedMeta = {};   // 合并后要写入云端的完整 meta
+  // 1) 先把云端所有键原样保留
+  Object.keys(cloudData).forEach(k => { mergedData[k] = cloudData[k]; });
+  Object.keys(cloudMeta).forEach(k => { mergedMeta[k] = cloudMeta[k]; });
+  // 2) 再用"本地较新"的键覆盖（本地无云端有的键且本地 meta 更新 → 覆盖；本地有云端没有的新键 → 新增）
+  Object.keys(localData).forEach(k => {
+    const bare = k.slice(3);
+    const lt = localMeta[bare] || 0;
+    const ct = cloudMeta[bare] || 0;
+    const cloudHas = Object.prototype.hasOwnProperty.call(cloudData, k);
+    if (!cloudHas) {
+      // 云端没有这个键 → 本地新增，直接写入
+      mergedData[k] = localData[k];
+      if (lt > 0) mergedMeta[bare] = lt;
+    } else if (lt > 0 && lt > ct) {
+      // 本地较新 → 覆盖
+      mergedData[k] = localData[k];
+      mergedMeta[bare] = lt;
+    }
+    // 其余（本地旧 / 本地无 meta）→ 保留云端，不覆盖
+  });
+  const payload = {
+    id: syncCfg.uid,
+    data: mergedData,
+    meta: mergedMeta,
+    updated_at: new Date().toISOString()
+  };
   syncClient.from('lulu_data').upsert(payload).then(({error}) => {
     if (error) syncStatus('同步失败：' + error.message, 'err');
     else {
@@ -1773,7 +1857,7 @@ async function pullCloud(autoReload){
   if (!syncCfg.connected || !syncClient || syncPulling) return;
   syncPulling = true;
   try {
-    const { data, error } = await syncClient.from('lulu_data').select('data').eq('id', syncCfg.uid).single();
+    const { data, error } = await syncClient.from('lulu_data').select('data,meta').eq('id', syncCfg.uid).single();
     if (!error && data && data.data){
       const cloudJson = JSON.stringify(data.data);
       const lastJson = localStorage.getItem('lulu_last_cloud_sync') || '';
@@ -1787,18 +1871,11 @@ async function pullCloud(autoReload){
         // 用户正在输入框打字 → 推迟到下一轮，避免刷新打断
         const ae = document.activeElement;
         if (autoReload && ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')){ syncPulling = false; return; }
-        // 语义比较：Supabase jsonb 返回时会重排对象键序，"推送回声"会表现成指纹不一致；
-        // 若云端与本地内容实际相同，只更新指纹、绝不重绘 → 根治"每 30 秒自己刷新一次"
-        const local = collectLocalData();
-        const cKeys = Object.keys(data.data);
-        let remoteChanged = cKeys.length !== Object.keys(local).length;
-        if (!remoteChanged){
-          for (const k of cKeys){
-            if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
-          }
-        }
-        if (remoteChanged){
-          applyRemoteData({ data: data.data });
+        // ★ 关键修复：以「applyRemoteData 是否真的落地覆盖了本地」为准决定是否重绘，
+        // 而不是以「云端内容 vs 本地内容是否不同」为准。后者会导致：内容确实不同，
+        // 但逐键时间戳合并判定"本地较新、保留本地"时，界面仍被反复重绘 → 原地抖动。
+        const didApply = applyRemoteData({ data: data.data, meta: data.meta });
+        if (didApply){
           // 就地刷新：重读内存变量并重绘当前页（不再整页 reload，避免闪烁/丢输入/丢滚动）
           reloadState();
           renderActivePage();
@@ -1872,30 +1949,22 @@ async function doConnect(url, key, uid, forceReload=false){
     const cloudJson = JSON.stringify(data.data);
     // 本地是否有"刚编辑、还没推送完"的改动（用持久化脏标记，刷新后仍有效）
     const hasPendingPush = !!syncTimer || localStorage.getItem('__lulu_dirty') === '1';
-    // 语义比较（键序无关）：Supabase jsonb 返回会重排键序，用 stableStringify 避免误判
-    const local = collectLocalData();
-    const cKeys = Object.keys(data.data);
-    let remoteChanged = cKeys.length !== Object.keys(local).length;
-    if (!remoteChanged){
-      for (const k of cKeys){
-        if (stableStringify(local[k]) !== stableStringify(data.data[k])){ remoteChanged = true; break; }
-      }
-    }
-    if (remoteChanged && hasPendingPush){
-      // 本地还有未推送的编辑 → 先推送到云端（本地为准），不覆盖本地；
-      // 否则"编辑后立刻刷新"会拉到旧云端、把刚编辑的新内容冲掉（表现为"内容没了"）。
+    if (hasPendingPush){
+      // 本地还有未推送的编辑 → 只推本地较新的键（pushAll 内部逐键比 meta），
+      // 绝不整表覆盖云端，否则会冲掉另一端刚上传的新增数据。
       pushAll();
       syncCfg.connected = true;
       storage.set('cloudsync', syncCfg);
       syncStatus('本地有未同步改动，已优先推送', 'ok');
       return true;
     }
-    if (remoteChanged){
-      // 云端语义上真有变化：拉取并合并到本地（恢复"打开即最新"的实时体验）
-      applyRemoteData(data);
-      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
-      syncCfg.connected = true;
-      storage.set('cloudsync', syncCfg);
+    // ★ 关键修复：打开时用逐键合并（applyRemoteData）而非"内容不同就 reload"。
+    // 合并后只有「真的采纳了云端数据」才就地重绘；绝不整页 location.reload()。
+    const didApply = applyRemoteData(data);
+    try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
+    syncCfg.connected = true;
+    storage.set('cloudsync', syncCfg);
+    if (didApply){
       syncStatus('已从云端拉取最新数据', 'ok');
       if (forceReload){
         const ae = document.activeElement;
@@ -1903,16 +1972,12 @@ async function doConnect(url, key, uid, forceReload=false){
           // 用户正在输入 → 不强行刷新，等下次轮询/切回页面时再校准，避免冲掉正在写的内容
           syncStatus('已从云端拉取最新数据', 'ok');
         } else {
-          const activePage = document.querySelector('.page.active');
-          storage.set('wb_last_page', activePage ? activePage.id.replace('page-', '') : 'settings');
-          setTimeout(() => location.reload(), 1500);
+          reloadState();
+          renderActivePage();
         }
       }
     } else {
-      // 云端与本地一致：无需刷新，仅确认连接态
-      syncCfg.connected = true;
-      storage.set('cloudsync', syncCfg);
-      try { localStorage.setItem('lulu_last_cloud_sync', cloudJson); } catch(e){}
+      // 云端与本地一致（或本地较新无需采纳）：仅确认连接态，绝不重绘 → 根治"打开即原地抖动"
       syncStatus('已是最新', 'ok');
     }
     return true;
@@ -2136,78 +2201,103 @@ function delTodo(idx) {
 // 行业动态真实报道池（每条均带原文链接），按日期滚动展示
 const dentalNews = [
   {
-    "date": "2026-09-16",
+    "date": "2026-09-18",
     "tag": "财经/集采",
-    "title": "两类耗材「小国采」今日开标 冠脉球囊等3类联盟集采报价",
-    "summary": "广东牵头的冠脉扩张球囊、子宫颈扩张球囊、输尿管支架3类医用耗材联盟集采9月16日08:30—14:30线上报价，实行询价模式，年度协议采购量不低于前一年实际使用量90%，子宫颈扩张球囊首次纳入全国联采。",
-    "url": "https://finance.sina.com.cn/roll/2026-09-14/doc-iniruarh4116721.shtml",
-    "analysis": "【利好】🟢 集采常态化倒逼国产替代提速\\n【关注】🟡 报价不得高于带量与非带量低值\\n【风口】💡 高端耗材以量换价抢份额"
+    "title": "第七批国家组织医用耗材集采开标 消化道内镜手术耗材整体纳入",
+    "summary": "第七批国家组织医用耗材集采开标，覆盖整个消化系统微创介入手术耗材，148家医疗器械企业517个产品中标，预计2027年1月实施，中选结果近期发布。",
+    "url": "https://finance.eastmoney.com/a/202609183877686727.html",
+    "analysis": "【利好】🟢 已卡位国产头部厂商加速替代进口，集采后份额进一步集中\n【利空】🔴 价格中枢系统性重置，腰部企业毛利承压\n【风口】💡 高值细分国产替代窗口打开，行业集中度提升"
   },
   {
-    "date": "2026-09-16",
+    "date": "2026-09-18",
+    "tag": "科技/脑机接口",
+    "title": "国家药监局发布全球首份脑机接口医疗器械AI脑电数据集标准",
+    "summary": "国家药监局发布全球首个脑机接口医疗器械AI算法数据领域国家标准，明确脑电数据集质量要求与评价方法，将于2027年9月1日起实施，填补全球技术规范空白。",
+    "url": "https://www.nmpa.gov.cn/",
+    "analysis": "【利好】🟢 脑机接口赛道规范化提速，国产创新产品商业化路径更清晰\n【关注】🟡 标准落地前企业需提前对标合规要求\n【风口】💡 BCI医疗器械进入标准化落地关键期"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "政策/监管",
+    "title": "《医疗器械生产质量管理规范检查指导原则》统一生产检查标尺",
+    "summary": "国家药监局印发《医疗器械生产质量管理规范检查指导原则》，统一规范医疗器械生产环节现场检查要求，为各地检查机构提供全国一致的执行标尺。",
+    "url": "https://www.nmpa.gov.cn/",
+    "analysis": "【利好】🟢 质控体系完善的企业有望持续受益，行业门槛抬高\n【关注】🟡 中小企业合规成本短期上升\n【风口】💡 监管统一利好龙头长期份额提升"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "财经/BD",
+    "title": "上海前8月生物医药BD交易37起 占全国33% 总额182.3亿美元",
+    "summary": "2026张江药谷大会披露，上海前8月生物医药BD交易达37起占全国总量33%、交易总额182.30亿美元居全国第三；制造业产值达1381.65亿元，全年有望破万亿。",
+    "url": "https://finance.sina.com.cn/money/bond/2026-09-18/doc-inisfazn8649364.shtml",
+    "analysis": "【利好】🟢 上海冲刺第五个万亿产业，创新药械出海枢纽地位强化\n【关注】🟡 BD热度依赖全球资本环境，估值波动需注意\n【风口】💡 跨境投融资生态完善带动CXO与上游需求"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "财经/创新药",
+    "title": "科创板24家创新药企上半年营收增65% 海外BD加速兑现",
+    "summary": "科创板2026半年度创新药业绩说明会披露，24家创新药企合计营收186.91亿元同比增长65.1%，核心产品放量与海外BD加速兑现为主要引擎。",
+    "url": "https://www.ce.cn/",
+    "analysis": "【利好】🟢 创新药板块业绩拐点确立，BD出海贡献增量\n【关注】🟡 临床兑现与商业化仍是分化关键\n【风口】💡 差异化靶点+ADC新模态受资本追捧"
+  },
+  {
+    "date": "2026-09-18",
     "tag": "财经/医药股",
-    "title": "博迈医疗9月16日创业板IPO上会 高端血管介入器械国产替代提速",
-    "summary": "博迈医疗9月16日迎来创业板IPO上会审议，冠脉球囊市占率11%居国产第一，海外收入占比超50%，2026上半年营收4.16亿元同比增37.43%，手握超90项发明专利与700余张三类证。",
-    "url": "https://gu.qq.com/resources/shy/news/detail-v2/index.html?t=1#/index?_tentrees_trans=0&id=SN20260916080701976fa399",
-    "analysis": "【利好】🟢 高端介入器械国产替代加速\\n【关注】🟡 集采常态化持续压价\\n【风口】💡 出海对冲国内价格压力"
+    "title": "医药板块逆势领涨A股 申万医药生物指数涨0.61%居前",
+    "summary": "9月17日A股三大指数集体收跌，申万医药生物指数逆势上涨0.61%居全行业前列，金石亚药、百花医药、南华生物涨停，创新药与AI制药方向资金活跃。",
+    "url": "https://xueqiu.com/5104788756/409721566",
+    "analysis": "【利好】🟢 医药承接价值方向流出资金，结构性走强特征明显\n【关注】🟡 板块缩量环境下持续性待观察\n【风口】💡 创新药+AI制药为资金主线方向"
   },
   {
-    "date": "2026-09-16",
-    "tag": "政策/医保",
-    "title": "国家医保局启动首批全国统一医保医疗服务项目目录 口腔种植在列",
-    "summary": "国家医保局9月16日印发《国家基本医疗保险医疗服务项目目录（第一批）制定工作方案》，首次制定全国统一目录，首批覆盖心血管、眼科、口腔种植、辅助生殖等13类，率先用于跨省异地就医结算。",
-    "url": "https://ysxw.cctv.cn/article.html?item_id=16166400305247414997&t=1789519217865",
-    "analysis": "【利好】🟢 医保支付规范提升公平性\\n【关注】🟡 美容保健类不予纳入\\n【风口】💡 口腔种植等13类支付标准化"
+    "date": "2026-09-18",
+    "tag": "财经/AI制药",
+    "title": "字节拆分AI制药公司Anew Labs完成2.9亿美元融资",
+    "summary": "字节跳动拆分AI制药公司Anew Labs完成2.9亿美元首轮独立融资，投后估值约15亿美元，红杉中国、IDG资本、高瓴创投参与，字节保留56%控股。",
+    "url": "https://news.qq.com/",
+    "analysis": "【利好】🟢 AI制药从大厂内部业务走向独立产业赛道\n【关注】🟡 商业化路径与管线兑现仍需时间验证\n【风口】💡 产业与互联网资本共同加注AI制药"
   },
   {
-    "date": "2026-09-16",
-    "tag": "脑机接口",
-    "title": "全球首个AI+脑机接口医疗器械标准发布 明年9月实施",
-    "summary": "国家药监局9月14日批准发布YY/T 2029—2026《脑机接口医疗器械 用于人工智能算法的脑电数据集质量要求与评价方法》，为全球首个采用AI处理脑电数据的BCI产品标准，2027年9月1日起实施。",
-    "url": "https://news.cctv.cn/2026/09/14/ARTIsNQHkAqa2EFwHt1GjGdl260914.shtml",
-    "analysis": "【利好】🟢 BCI国产化有了质量标尺\\n【风口】💡 侵入式/非侵入式商业化窗口\\n【关注】🟡 数据集合规抬高研发门槛"
+    "date": "2026-09-18",
+    "tag": "政策/口腔",
+    "title": "全国统一医保医疗服务项目目录首次制定 口腔种植入选首批13类",
+    "summary": "国家医保局印发《国家基本医疗保险医疗服务项目目录(第一批)制定工作方案》，首次制定全国统一目录，首批覆盖13类，口腔种植入选，率先用于跨省异地就医结算。",
+    "url": "https://www.nhsa.gov.cn/art/2026/9/16/art_14_22149.html",
+    "analysis": "【利好】🟢 口腔种植支付端全国统一化起步，连锁口腔跨区域规则趋同\n【关注】🟡 美容类非功能性种植仍走自费，医保回归保基本\n【风口】💡 高端美学种植与医保基本盘分层机会更清晰"
   },
   {
-    "date": "2026-09-16",
-    "tag": "科技/医疗机器人",
-    "title": "第94届CMEF落户北京 AI·脑机接口·具身智能·医疗机器人齐聚",
-    "summary": "第94届CMEF及系列展落户北京，升级前沿科技特色展区，聚焦医疗AI产业化落地、脑机接口全链条医用器械、具身智能与医疗机器人，ROPA6 AI全骨科机器人、宝瑞刀复合陡脉冲治疗系统等亮相。",
-    "url": "https://m.takefoto.cn/news/2026/09/15/11959701.shtml",
-    "analysis": "【利好】🟢 硬核科技赋能设备升级\\n【风口】💡 AI/BCI/机器人成产业风口\\n【关注】🟡 高端设备商业化落地节奏"
-  },
-  {
-    "date": "2026-09-16",
-    "tag": "财经/创新器械",
-    "title": "全国药品安全宣传周：今年51个创新医疗器械、59个创新药获批",
-    "summary": "2026全国药品安全宣传周启动，披露今年以来已有59个创新药、51个创新医疗器械获批上市，其中13个为新机制新靶点首创新药；创新药对外授权交易总额突破1200亿美元、同比增36%。",
-    "url": "https://www.ce.cn/xwzx/gnsz/gdxw/202609/t20260914_3212855.shtml",
-    "analysis": "【利好】🟢 创新器械审批持续提速\\n【风口】💡 国产创新出海价值重估\\n【关注】🟡 抽检飞检常态化趋严"
-  },
-  {
-    "date": "2026-09-16",
-    "tag": "口腔/政策",
-    "title": "安徽整合口腔等价格项目 114项口腔类明年起执行",
-    "summary": "安徽省医保局印发通知，规范整合药学、病理、眼科、口腔类价格项目，新整合设立口腔类114项、废止旧项目601项，188个新项目纳入医保支付，自2026年10月20日起执行。",
-    "url": "https://ybj.ah.gov.cn/public/7071/150678221.html",
-    "analysis": "【利好】🟢 口腔项目收费标准化透明化\\n【关注】🟡 89个项目不纳入医保\\n【风口】💡 民营口腔合规化经营"
-  },
-  {
-    "date": "2026-09-16",
-    "tag": "医保/耗材",
-    "title": "黑龙江征求医保医用耗材支付标准意见 编码整合+通用名管理",
-    "summary": "黑龙江省医保局9月11日至16日公开征求《医保医用耗材支付标准（2026年）》意见，对全省医保耗材编码整合映射并制定支付标准，叠加11月1日全省目录统一执行，影响耗材企业准入定价。",
-    "url": "https://weibo.com/ttarticle/p/show?id=2309405343021813596263",
-    "analysis": "【利好】🟢 支付标准落地规范市场\\n【关注】🟡 通用名+支付标准治理\\n【风口】💡 耗材企业准入策略调整"
-  },
-  {
-    "date": "2026-09-16",
-    "tag": "政策/医保",
-    "title": "国家医保局新增200余项新技术价格项目 手术机器人脑机接口开口子",
-    "summary": "国家医保局披露已统一新增手术机器人、脑机接口等200余项医疗服务价格项目，并试行价格项目预立项制度，实现「一省立项、全国跟进」，畅通创新回报通道。",
+    "date": "2026-09-18",
+    "tag": "AI制药",
+    "title": "金斯瑞牵手礼来AI药物发现平台 股价大涨14.31%",
+    "summary": "金斯瑞生物科技宣布加入礼来AI/机器学习药物发现协作平台Lilly TuneLab，将为参与企业提供蛋白表达、纯化及表征等湿实验服务，打通AI预测到实验验证闭环。",
     "url": "https://finance.sina.com.cn/",
-    "analysis": "【利好】🟢 创新技术收费诉求获回应\\n【风口】💡 手术机器人/脑机接口放量\\n【关注】🟡 预立项落地节奏待观察"
+    "analysis": "【利好】🟢 AI+实验闭环提升研发效率，平台赋能型企业受益\n【关注】🟡 合作收益需看长期管线转化\n【风口】💡 AI制药基础设施需求持续释放"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "财经/港股医疗",
+    "title": "港股医疗ETF连续吸金 医疗主题指数盘中涨2.77%",
+    "summary": "9月17日港股医疗ETF永赢涨3.12%、港股通医疗ETF华夏涨2.38%，近5个交易日分别累计上涨4.15%和3.50%，资金回流创新药与医疗资产。",
+    "url": "https://www.cngold.org/",
+    "analysis": "【利好】🟢 港股医疗板块修复延续，资金回流创新药与医疗资产\n【关注】🟡 海外利率环境仍压制估值\n【风口】💡 创新药与CXO修复弹性较大"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "环球/创新药",
+    "title": "罗氏双抗III期达标 拜耳非奈利酮获FDA批准新适应症",
+    "summary": "罗氏CD20×CD3双抗Lunsumio联合来那度胺治疗滤泡性淋巴瘤III期达主要终点；拜耳非奈利酮获FDA批准用于1型糖尿病相关慢性肾病，为30多年来该领域首个新疗法。",
+    "url": "https://www.bayer.com/",
+    "analysis": "【利好】🟢 全球创新药进展密集，映射国内同赛道估值\n【关注】🟡 国内企业跟进需看临床与商业化能力\n【风口】💡 双抗与慢病新机制药物成热点"
+  },
+  {
+    "date": "2026-09-18",
+    "tag": "口腔/集采",
+    "title": "种植牙集采三年重构 利润从耗材转向医疗服务",
+    "summary": "集采落地三年，种植牙告别耗材暴利时代，利润来源从耗材差价转向医疗技术、临床能力与全周期服务，国产植体集采价630-900元，单颗全流程主流降至3000-7000元。",
+    "url": "https://www.toutiao.com/article/7683006281740845622/",
+    "analysis": "【利好】🟢 需求释放，手术量持续上涨，合规机构受益\n【利空】🔴 机构单颗毛利大幅压缩，行业进入微利时代\n【风口】💡 数字化导板与高端复杂病例成差异化方向"
   }
-];;;
+];
+;;;
 ;;;;;;;;;
 
 
@@ -2294,166 +2384,167 @@ function scheduleNewsUpdate() {
 // 真实新闻池：每次自动化任务重抓后整体替换。点开链接走 search: 前缀的实时新闻搜索，保证看到当天最新报道。
 const dailyBriefingNews = [
   {
-    "date": "2026-09-16",
-    "tag": "A股",
-    "title": "A股早盘震荡偏弱 沪指微跌科创50逆势涨",
-    "summary": "9月16日早盘A股三大指数小幅走弱，沪指跌0.12%、深成指跌0.29%、创业板指跌0.31%，科创50逆势涨0.59%；两市融资余额较前一交易日增6.74亿元至2.59万亿元。",
-    "url": "https://xnews.jin10.com/details/230103",
-    "analysis": "【利空】🔴 指数偏弱成长承压\\n【关注】🟡 融资余额温和扩张\\n【风口】💡 科创硬科技相对占优"
+    "date": "2026-09-18",
+    "tag": "央行/财经",
+    "title": "美联储时隔三年再加息25基点 点阵图暗示年内或再加息一次",
+    "summary": "9月16日美联储将联邦基金利率上调25个基点至3.75%-4%，为2023年7月以来首次加息，全票通过；点阵图显示多数官员预计年内再加息一次，道指跌631点。",
+    "url": "https://www.toutiao.com/article/7686308702818746916/",
+    "analysis": "【利空】🔴 全球流动性收紧，新兴市场资本回流美国压力加大\n【利好】🟢 黄金避险与美元资产相对占优\n【风口】💡 关注利率敏感板块与人民币债券避风港属性"
   },
   {
-    "date": "2026-09-16",
-    "tag": "油价",
-    "title": "国际油价破100美元 中东双海峡告急推升能源",
-    "summary": "中东供应风险推升油价，WTI原油收涨3.01%报100.96美元/桶、布伦特涨1.74%报104.96美元；沙特红海延布港装船暂停、取消部分欧洲客户9月原油订单。",
-    "url": "https://news.qq.com/rain/a/20260916A03BC700",
-    "analysis": "【利空】🔴 油价上行推升输入性通胀\\n【利好】🟢 油气开采与替代能源受益\\n【关注】🟡 霍尔木兹通航风险"
+    "date": "2026-09-18",
+    "tag": "A股/财经",
+    "title": "A股三大指数小幅收跌 沪指报3875.60 成交1.84万亿",
+    "summary": "9月17日A股全天弱势震荡，沪指跌0.41%报3875.60、深成指跌0.33%、创业板指跌0.40%，成交维持1.84万亿，半导体、AI算力、油气能源局部强势。",
+    "url": "https://xueqiu.com/5104788756/409721566",
+    "analysis": "【关注】🟡 市场放量滞涨、题材轮动快，赚钱效应偏弱\n【风口】💡 科技高景气主线与低位板块补涨并存\n【利空】🔴 追高易回落，风格分化风险上升"
   },
   {
-    "date": "2026-09-16",
-    "tag": "黄金/央行",
-    "title": "美债收益率破5% 现货黄金横盘4300美元附近",
-    "summary": "避险与加息预期叠加，10年期美债收益率盘中触及5.04%创2007年来新高、收报5.008%；现货黄金在4300美元附近横盘收跌0.11%报4294.14美元/盎司，白银涨0.69%。",
-    "url": "https://xnews.jin10.com/details/230103",
-    "analysis": "【利空】🔴 美债破5压制黄金\\n【关注】🟡 美元指数升至99.6新高\\n【风口】💡 避险资产波动加剧"
+    "date": "2026-09-18",
+    "tag": "黄金/财经",
+    "title": "现货黄金约4354美元/盎司 加息日回落0.68%",
+    "summary": "加息落地后现货黄金报约4354美元/盎司较前收跌0.68%，COMEX黄金跌0.7%；高盛维持2027年底黄金目标5400美元/盎司。",
+    "url": "https://www.eastmoney.com/",
+    "analysis": "【利好】🟢 地缘冲突避险与全球央行购金构成支撑\n【利空】🔴 实际利率上行增加持有无息资产成本\n【关注】🟡 金价定价逻辑转向不确定性对冲"
   },
   {
-    "date": "2026-09-16",
-    "tag": "ETF/半导体",
-    "title": "硬科技ETF资金净流入超500亿 长线资金逆势加仓",
-    "summary": "过去一个月科创50、半导体、通信、人工智能等主题ETF资金净流入超500亿元，科技主题基金密集成立，产业资本与机构现身ETF持有人名单。",
-    "url": "https://m.jrj.com.cn/madapter/finance/2026/09/16084058451914.shtml",
-    "analysis": "【利好】🟢 长线资金逆势加仓硬科技\\n【风口】💡 半导体/AI主题配置升温\\n【关注】🟡 短期波动仍大"
+    "date": "2026-09-18",
+    "tag": "油价/财经",
+    "title": "WTI原油报96.2美元/桶 霍尔木兹通行恢复缓和供给担忧",
+    "summary": "国际油价高位回落，WTI报约96.2美元/桶跌1.0%、布伦特99.1跌0.8%；霍尔木兹海峡通行量恢复与沙特管道修复缓解供应中断担忧。",
+    "url": "https://www.toutiao.com/article/7686308702818746916/",
+    "analysis": "【利好】🟢 地缘缓和带动油价回落，输入性通胀压力缓解\n【利空】🔴 中东战局未熄，油价仍由战场定价\n【关注】🟡 关注霍尔木兹通航与沙特管道修复进度"
   },
   {
-    "date": "2026-09-16",
-    "tag": "财经/港股",
-    "title": "港股IPO火热 今年以来募资超3600亿港元",
-    "summary": "今年以来港股IPO市场火热，募资总额超3600亿港元居全球前列，胜宏科技、立讯精密、中际旭创等A股龙头相继登陆港交所，34家A股公司已成功赴港。",
-    "url": "https://m.jrj.com.cn/madapter/finance/2026/09/16084058451914.shtml",
-    "analysis": "【利好】🟢 中概融资通道畅通\\n【风口】💡 A股龙头双市场布局\\n【关注】🟡 估值与流动性分化"
+    "date": "2026-09-18",
+    "tag": "宏观/财经",
+    "title": "8000亿元新型政策性金融工具首批资金启动投放",
+    "summary": "由国开行、农发行、进出口银行负责投放的新型政策性金融工具首批资金启动，一批智能制造和基础设施项目相继获得支持，通过资本金杠杆放大投资总量。",
+    "url": "https://www.eastmoney.com/",
+    "analysis": "【利好】🟢 基建与智能制造项目获资本金杠杆支持\n【风口】💡 优化投资结构，拉动有效投资\n【关注】🟡 关注资金落地项目的真实开工节奏"
   },
   {
-    "date": "2026-09-16",
-    "tag": "国内/基建",
-    "title": "平陆运河今日通航 西部陆海新通道骨干工程",
-    "summary": "西部陆海新通道骨干工程平陆运河9月16日通航，全长134.2公里、按内河Ⅰ级航道建设，可通航5000吨级船舶，打通江海联运新通道。",
-    "url": "https://ysxw.cctv.cn/article.html?item_id=16625850398639945429",
-    "analysis": "【利好】🟢 西南出海里程大幅缩短\\n【风口】💡 沿线物流产业受益\\n【关注】🟡 运营效益待释放"
+    "date": "2026-09-18",
+    "tag": "住建/政策",
+    "title": "国新办10时举行住建部十五五住房城乡建设高质量发展发布会",
+    "summary": "国务院新闻办公室9月18日10时举行住建部十五五住房城乡建设专场发布会，副部长陈绍旺介绍推进住房城乡建设事业高质量发展有关情况并答记者问。",
+    "url": "https://big5.china.com.cn/gate/big5/caifang.china.com.cn/2026-09/16/content_43492264.htm",
+    "analysis": "【利好】🟢 城市更新与保障房体系明确，相关链条受益\n【风口】💡 收购存量房改保障房、地下管网改造放量\n【关注】🟡 房地产新模式从规模扩张转向品质提升"
   },
   {
-    "date": "2026-09-16",
-    "tag": "政策/宏观",
-    "title": "电子信息制造业十五五规划发布 2030营收破30万亿",
-    "summary": "工信部、发改委印发《电子信息制造业发展十五五规划》，提出到2030年规模以上企业营业收入突破30万亿元、研发投入强度3.5%，巩固能源电子、低空经济优势，推动集成电路突破。",
-    "url": "https://www.cnfin.com/hs-lb/detail/20260916/4470402_1.html",
-    "analysis": "【利好】🟢 产业中长期目标明确\\n【风口】💡 集成电路/能源电子/低空\\n【关注】🟡 外部技术封锁风险"
+    "date": "2026-09-18",
+    "tag": "铭记/国内",
+    "title": "九一八事变爆发95周年 沈阳9时18分拉响防空警报撞钟鸣警",
+    "summary": "今年是九一八事变爆发95周年，9月18日上午沈阳九一八历史博物馆举行撞钟鸣警仪式，9时18分全城拉响防空警报持续3分钟，多地同步鸣警。",
+    "url": "https://www.shenyang.gov.cn/zwgk/zwdt/bxgz/202609/t20260917_5090716.html",
+    "analysis": "【关注】🟡 铭记历史、缅怀先烈，爱国主义教育重要时点\n【风口】💡 红色文旅与国防教育需求提升\n【利好】🟢 凝聚民族记忆，珍爱和平开创未来"
   },
   {
-    "date": "2026-09-16",
-    "tag": "政策/国内",
-    "title": "两部门对在线酒店预订平台行政指导 防范内卷竞争",
-    "summary": "市场监管总局会同文旅部对美团、抖音、京东、携程、同程、飞猪等平台开展行政指导，要求落实合规主体责任、防范独家合作与「全网最低价」等内卷竞争风险。",
-    "url": "https://ysxw.cctv.cn/article.html?item_id=16625850398639945429",
-    "analysis": "【利好】🟢 平台竞争秩序趋规范\\n【关注】🟡 出行旅游价格透明化\\n【风口】💡 合规经营头部平台"
+    "date": "2026-09-18",
+    "tag": "民生/政策",
+    "title": "广电总局通报电视套娃收费治理 超2.8亿家庭开机直达直播",
+    "summary": "广电总局通报电视套娃收费治理成果，全国超2.8亿家庭电视设备已实现开机直达直播，大幅精简冗余收费项目与开机等待时长。",
+    "url": "https://www.nrta.gov.cn/",
+    "analysis": "【利好】🟢 用户权益改善，开机体验明显提升\n【风口】💡 电视行业规范透明，内容付费回归理性\n【关注】🟡 平台盈利模式需重构"
   },
   {
-    "date": "2026-09-16",
-    "tag": "国际/外交",
-    "title": "伊朗外长阿拉格齐9月16日访华 中东局势关键斡旋",
-    "summary": "外交部宣布伊朗外长阿拉格齐9月16日访华，中共中央政治局委员、外交部长王毅将同其举行会谈，正值中东局势紧张、霍尔木兹风险升温之际。",
-    "url": "https://ysxw.cctv.cn/article.html?item_id=16625850398639945429",
-    "analysis": "【关注】🟡 中东外交斡旋关键窗口\\n【风口】💡 能源与航运风险牵动全局\\n【利好】🟢 多边外交稳住经贸"
+    "date": "2026-09-18",
+    "tag": "中美/国际",
+    "title": "王毅同美国务卿鲁比奥通电话 就中美高层交往深入讨论",
+    "summary": "9月17日王毅同美国国务卿鲁比奥通电话，双方着重就两国高层交往深入讨论，强调元首外交是中美关系定盘星，并就中东局势等问题交换意见。",
+    "url": "https://big5.china.com.cn/txt/2026-09/18/content_118701701.shtml",
+    "analysis": "【关注】🟡 双方管控分歧、筹备下阶段高层交往\n【利好】🟢 建设性战略稳定关系利好全球预期\n【风口】💡 关注九月底元首会晤进展"
   },
   {
-    "date": "2026-09-16",
-    "tag": "国际/美股",
-    "title": "美联储9月议息会议举行 市场关注加息25基点",
-    "summary": "美联储9月15—16日举行议息会议，将于16日14时发布声明与经济预测摘要；市场预计加息25基点，为2023年来首次，美债收益率已提前反应。",
-    "url": "https://news.qq.com/rain/a/20260916A03BC700",
-    "analysis": "【利空】🔴 加息预期压制全球风险资产\\n【关注】🟡 点阵图指引后续路径\\n【风口】💡 黄金美元波动加剧"
+    "date": "2026-09-18",
+    "tag": "欧洲/国际",
+    "title": "瑞典首相宣布辞职 按议会程序推进后续组阁",
+    "summary": "瑞典首相宣布辞职，该国将按议会程序推进后续组阁工作，北欧区域经济与能源合作政策走向受到外界关注。",
+    "url": "https://www.chinanews.com.cn/",
+    "analysis": "【关注】🟡 北欧政策不确定性短期上升\n【利空】🔴 能源合作与区域政策节奏或受影响\n【风口】💡 关注组阁后对华与能源政策取向"
   },
   {
-    "date": "2026-09-16",
+    "date": "2026-09-18",
     "tag": "航天/科技",
-    "title": "朱雀二号一箭十星 民营首次大型星座组网",
-    "summary": "9月15日朱雀二号改进型遥七运载火箭发射，将10颗千帆极轨19组卫星送入预定轨道，系我国民营商业航天首次承担大型卫星互联网星座规模化组网任务。",
-    "url": "https://www.cnfin.com/hs-lb/detail/20260916/4470402_1.html",
-    "analysis": "【利好】🟢 民营航天迈入批量组网\\n【风口】💡 卫星互联网产业提速\\n【关注】🟡 发射密度与成本管控"
+    "title": "我国成功发射卫星互联网低轨25组卫星",
+    "summary": "9月17日8时32分，我国在海南商业航天发射场使用长征十二号运载火箭成功将卫星互联网低轨25组卫星送入预定轨道，发射任务圆满成功，为长征系列第667次发射。",
+    "url": "http://hq.news.cn/20260918/6f8fbc26805a4512a01ee02f8b5f3b78/c.html",
+    "analysis": "【利好】🟢 低轨星座组网加速，航天产业链受益\n【风口】💡 商业航天发射能力持续验证\n【关注】🟡 关注下游应用与卫星互联网商业化"
   },
   {
-    "date": "2026-09-16",
-    "tag": "科技/算力",
-    "title": "华为发布全球首个3D数据中心 十万卡昇腾超节点",
-    "summary": "华为在AIDC大会上发布全球首个3D数据中心，以十万卡级昇腾超节点集群为基础，机电预制化率超90%、交付周期由6个月缩至3个月，单栋机房支持168MW。",
-    "url": "https://www.163.com/dy/article/L6U9MKCF05198NMR.html",
-    "analysis": "【利好】🟢 国产算力基建再升级\\n【风口】💡 AI算力降本增效\\n【关注】🟡 芯片供给与能耗约束"
+    "date": "2026-09-18",
+    "tag": "半导体/科技",
+    "title": "华为Connect 2026发布业界首个NPO技术昇腾960超节点",
+    "summary": "华为全联接大会2026发布业界首个采用NPO技术的昇腾960超节点，推出Hi-ONE 7.2T光引擎对标Broadcom CPO，单超节点4096卡规模、最大8E FP8算力。",
+    "url": "https://www.huawei.com/",
+    "analysis": "【利好】🟢 国产算力底座突破，自主AI生态强化\n【风口】💡 光互联下一代标准卡位战打响\n【关注】🟡 生态适配与软件闭环仍需时间"
   },
   {
-    "date": "2026-09-16",
-    "tag": "AI/半导体",
-    "title": "Anthropic呼吁放缓AI遭特朗普驳斥 芯片股蒸发5000亿",
-    "summary": "Anthropic CEO呼吁放缓前沿大模型迭代并建第三方审计，OpenAI、xAI声援；特朗普与白宫AI主管公开驳斥，全球芯片与AI硬件板块单日市值蒸发逾5000亿美元。",
-    "url": "https://www.163.com/dy/article/L6U9MKCF05198NMR.html",
-    "analysis": "【利空】🔴 政策博弈冲击AI硬件股\\n【关注】🟡 安全与限速路线分歧\\n【风口】💡 算力需求长期刚性"
+    "date": "2026-09-18",
+    "tag": "算力/AI",
+    "title": "英伟达黄仁勋：2027年芯片销量将翻倍 纳指涨1.69%",
+    "summary": "9月17日英伟达CEO黄仁勋在苏格兰AI活动表示2027年芯片销量将达今年约两倍，隔夜纳指涨1.69%，三倍做多半导体ETF涨10.44%，Arm、英特尔、AMD等普涨。",
+    "url": "https://finance.eastmoney.com/a/202609183877849763.html",
+    "analysis": "【利好】🟢 AI硬件与算力需求持续高景气\n【风口】💡 CPO光互联产业链迎关键突破窗口\n【关注】🟡 供应链瓶颈从需求转向电力与先进封装"
   },
   {
-    "date": "2026-09-16",
-    "tag": "AI/大模型",
-    "title": "智谱完成约50亿美元融资 加码下一代GLM与算力",
-    "summary": "智谱公告完成约20亿美元股份配售及约30亿美元可转债，合计约50亿美元，约60%用于下一代GLM基础模型与自训练体系及算力资源；上半年收入9.54亿元。",
-    "url": "https://view.inews.qq.com/a/20260915A05TPU00",
-    "analysis": "【利好】🟢 头部大模型融资充裕\\n【风口】💡 算力与自训练投入加码\\n【关注】🟡 普遍亏损盈利待解"
+    "date": "2026-09-18",
+    "tag": "大模型/AI",
+    "title": "DeepSeek首次外部融资7.4亿美元 估值740亿美元 拟科创板IPO",
+    "summary": "AI实验室DeepSeek完成首次外部融资7.4亿美元、Pre-money估值740亿美元，锚定幻方、腾讯、京东、网易、宁德时代，拟2027年科创板IPO。",
+    "url": "https://www.tmtpost.com/agent/ai-article?id=20437",
+    "analysis": "【利好】🟢 中国AI实验室资本窗口打开\n【风口】💡 A股/港股迎接本土AI资产上市\n【关注】🟡 估值跳涨后需看模型与算力兑现"
   },
   {
-    "date": "2026-09-16",
-    "tag": "AI/智能体",
-    "title": "字节整合豆包飞书火山引擎 飞书8.0团队智能体",
-    "summary": "字节跳动CEO梁汝波确认将豆包、飞书、火山引擎整合为一体化企业智能平台；飞书8.0发布原生集成「豆包工作伙伴」团队智能体，具备独立身份与长期记忆。",
-    "url": "https://www.163.com/dy/article/L6U9MKCF05198NMR.html",
-    "analysis": "【利好】🟢 企业AI从工具走向组织成员\\n【风口】💡 Agent+协作+模型三位一体\\n【关注】🟡 商业化变现待验证"
+    "date": "2026-09-18",
+    "tag": "算力/AI",
+    "title": "苹果筹划自研AI服务器芯片 预估2029年登场",
+    "summary": "科技媒体称苹果正筹划面向AI开发者、企业和政府机构的自研服务器芯片，基础版配两颗M8 Ultra、高配四颗，考虑用英伟达NVLink Fusion连接，预估2029年发布。",
+    "url": "https://www.ithome.com/",
+    "analysis": "【关注】🟡 科技巨头自研AI芯片竞争加剧\n【利空】🔴 对传统服务器芯片厂商构成长期压力\n【风口】💡 AI基础设施自研化趋势确立"
   },
   {
-    "date": "2026-09-16",
-    "tag": "战况/霍尔木兹",
-    "title": "霍尔木兹海峡：伊朗称封锁智能管控 一艘船只遭袭",
-    "summary": "伊朗革命卫队称霍尔木兹海峡处于封锁与智能管控状态、一天击落三架美军无人机；英国海上贸易行动办公室通报一艘船只在海峡水域遭不明投射物袭击。",
-    "url": "https://news.qq.com/rain/a/20260916A03BC700",
-    "analysis": "【利空】🔴 航运与能源安全告急\\n【关注】🟡 美伊谈判信号反复\\n【风口】💡 油价地缘溢价延续"
+    "date": "2026-09-18",
+    "tag": "中东/战况",
+    "title": "美伊进入第二阶段 霍尔木兹护航 胡塞扩大红海袭扰",
+    "summary": "美伊冲突转向长期海上遏制，美军维持霍尔木兹油轮护航；胡塞武装扩大对沙特能源节点袭扰并控制红海关键岛屿，沙特东西管道因伊拉克方向无人机袭击关闭。",
+    "url": "https://warsww.net/us-iran-war-second-phase-ukraine-refinery-strikes-sudan-aid-collapse-september-2026",
+    "analysis": "【利空】🔴 全球能源通道双 chokepoint 风险抬升\n【关注】🟡 油价与航运保险承压\n【风口】💡 关注油气与航运安全主题波动"
   },
   {
-    "date": "2026-09-16",
-    "tag": "战况/俄乌",
-    "title": "俄乌能源战互袭 乌袭俄炼油厂 俄大规模无人机袭乌",
-    "summary": "泽连斯基确认乌军打击俄罗斯萨马拉锡兹兰炼油厂及无人机设施；俄方同日对乌克兰发动大规模无人机袭击，基辅能源与港口设施遭打击，美方称能源战未停。",
-    "url": "https://news.qq.com/rain/a/20260916A03BC700",
-    "analysis": "【利空】🔴 能源设施互袭推升风险\\n【关注】🟡 停火协议执行存疑\\n【风口】💡 防空与能源修复需求"
+    "date": "2026-09-18",
+    "tag": "俄乌/战况",
+    "title": "俄乌高强度消耗 乌军远程打击俄境内炼油厂",
+    "summary": "俄乌冲突进入长期消耗对峙，俄军大规模无人机导弹袭乌能源与民生设施；乌军远程无人机打击俄萨马拉、鞑靼斯坦炼油厂，双方本土纵深互袭常态化。",
+    "url": "https://www.toutiao.com/a7685824811842535975",
+    "analysis": "【利空】🔴 能源设施战推高全球油气与粮食安全担忧\n【关注】🟡 谈判有信号无实质进展\n【风口】💡 防务与能源自主成为长期主题"
   },
   {
-    "date": "2026-09-16",
-    "tag": "社会/民生",
-    "title": "海南暴雨洪涝 国家发改委拨3000万应急恢复",
-    "summary": "受持续强降雨影响海南多地发生洪涝灾害，国家发改委紧急安排3000万元支持海南暴雨洪涝灾害灾后应急恢复。",
-    "url": "https://ysxw.cctv.cn/article.html?item_id=16625850398639945429",
-    "analysis": "【利好】🟢 中央财政应急兜底\\n【关注】🟡 灾后重建与防疫\\n【风口】💡 水利基础设施补短板"
+    "date": "2026-09-18",
+    "tag": "农业/民生",
+    "title": "全国秋粮由北向南进入收获期 主产区长势平稳",
+    "summary": "全国秋粮生产由北向南陆续进入收获期，农业农村部研判主产区长势总体平稳，各地抓紧落实农机调度保障秋收顺利推进。",
+    "url": "https://www.moa.gov.cn/",
+    "analysis": "【利好】🟢 秋粮丰收在望，粮食安全底盘稳固\n【关注】🟡 关注后期天气与收购价格\n【风口】💡 农业机械化与仓储物流需求提升"
   },
   {
-    "date": "2026-09-16",
-    "tag": "体育",
-    "title": "国乒出征名古屋亚运 9·20—28七项冲金",
-    "summary": "中国乒乓球队9月16日启程赴名古屋，参加9月20—28日爱知·名古屋亚运会乒乓球7个项目，王楚钦、孙颖莎、王曼昱三奥运冠军压阵，7人首次战亚运、以老带新。",
-    "url": "https://www.toutiao.com/article/7685885249510801954/",
-    "analysis": "【利好】🟢 国乒整体实力占优\\n【关注】🟡 日本主场与新老交替挑战\\n【风口】💡 赛事带动乒乓消费"
+    "date": "2026-09-18",
+    "tag": "文化/文娱",
+    "title": "2026我与地坛北京书市开幕 国庆中心花坛备料",
+    "summary": "2026我与地坛北京书市9月17日启幕，展期11天、400多家出版机构参展创历届新高；天安门国庆巨型花果篮预计9月25日完工亮相，桃柿苹果石榴已备料。",
+    "url": "https://www.news.cn/",
+    "analysis": "【利好】🟢 秋日文旅消费升温，实体书业与文创受益\n【风口】💡 节日经济带动本地消费\n【关注】🟡 假期客流与安保压力同步上升"
   },
   {
-    "date": "2026-09-16",
-    "tag": "文娱",
-    "title": "歌手杨坤起诉模仿恶搞侵权终审胜诉",
-    "summary": "歌手杨坤起诉网红「四川芬达」模仿恶搞侵权一案终审胜诉，法院判赔杨坤共计31.5万元，款项将全额捐赠公益组织。",
-    "url": "https://news.qq.com/rain/a/20260916A033L400",
-    "analysis": "【关注】🟡 网红模仿恶搞边界明晰\\n【利好】🟢 艺人肖像名誉维权获支持\\n【风口】💡 短视频内容合规化"
+    "date": "2026-09-18",
+    "tag": "体育/亚运",
+    "title": "名古屋亚运会三大球开赛 中国男篮18日半决赛对阵日本",
+    "summary": "2026爱知·名古屋亚运会部分球类项目提前开赛，中国男足2-1逆转朝鲜开门红，中国男篮连胜晋级四强、18日半决赛对阵日本，女排3-0菲律宾。",
+    "url": "https://www.workercn.cn/papers/grrb/2026/09/18/8/news-1.html",
+    "analysis": "【利好】🟢 体育盛事带动全民关注度提升\n【风口】💡 赛事经济与运动消费受提振\n【关注】🟡 对手实力与临场发挥决定奖牌走势"
   }
-];;;
+];
+;;;
 ;;;;;;;;;
 
 
@@ -4640,103 +4731,104 @@ const wordsData = [
 const historyToday = [
   {
     "month": 9,
-    "day": 16,
-    "year": 1919,
+    "day": 18,
+    "year": 1931,
     "region": "国内",
-    "event": "1919年9月16日，周恩来主持的觉悟社在天津学生联合会办公室召开成立大会，成为五四时期重要的进步团体。"
+    "event": "九一八事变爆发，日本关东军制造柳条湖事件炮轰北大营，开始侵占中国东北，中国人民抗日战争由此起点。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1935,
+    "day": 18,
+    "year": 1999,
     "region": "国内",
-    "event": "1935年9月16日，中央红军陕甘支队突破天险腊子口，打开北上陕甘的通道，为长征胜利奠定基础。"
+    "event": "中共中央、国务院、中央军委表彰为研制两弹一星作出突出贡献的23位科技专家，授予两弹一星功勋奖章。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1939,
+    "day": 18,
+    "year": 1977,
     "region": "国内",
-    "event": "1939年9月16日，毛泽东在《和中央社、扫荡报、新民报三记者的谈话》中提出「人不犯我，我不犯人；人若犯我，我必犯人」的著名方针。"
+    "event": "中共中央发出《关于召开全国科学大会的通知》，动员向科学技术现代化进军，提出恢复技术职称与建立考核制度。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1948,
+    "day": 18,
+    "year": 1940,
     "region": "国内",
-    "event": "1948年9月16日至24日，华东野战军发起济南战役，攻克济南，揭开战略决战序幕，是解放军攻克敌人重点设防大城市的开始。"
+    "event": "中共中央发出《关于开展敌后大城市工作的通知》，要求全党把开展敌后大城市工作视为最重要任务。"
   },
   {
     "month": 9,
-    "day": 16,
+    "day": 18,
     "year": 1985,
     "region": "国内",
-    "event": "1985年9月16日，中共十二届四中全会在北京举行，讨论确定中央领导机构成员新老交替原则，同意一批老同志不再任职。"
+    "event": "中国共产党全国代表会议举行，对中央委员、中央顾问委员会和中央纪律检查委员会成员进行调整。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1990,
+    "day": 18,
+    "year": 2009,
     "region": "国内",
-    "event": "1990年9月16日，国务院印发《关于建立国家专项粮食储备制度的决定》，增强宏观调控能力、稳定粮食市场供应与价格。"
+    "event": "中共十七届四中全会通过《关于加强和改进新形势下党的建设若干重大问题的决定》。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 2002,
+    "day": 18,
+    "year": 2019,
     "region": "国内",
-    "event": "2002年9月16日，首届国际水稻大会在北京举行；同日「十五」期间「211工程」正式启动。"
+    "event": "习近平在郑州主持召开黄河流域生态保护和高质量发展座谈会，将其确立为重大国家战略。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1620,
+    "day": 18,
+    "year": 1793,
     "region": "国际",
-    "event": "1620年9月16日，搭载约102名清教徒的「五月花号」从英国普利茅斯驶向美洲，后建立普利茅斯殖民地，成为美国早期历史的重要一页。"
+    "event": "乔治·华盛顿在华盛顿特区为美国国会大厦 laying 奠基石，象征联邦永久首都建设起步。"
   },
   {
     "month": 9,
-    "day": 16,
+    "day": 18,
     "year": 1810,
     "region": "国际",
-    "event": "1810年9月16日，墨西哥神父米格尔·伊达尔戈发出「多洛雷斯呼声」，打响独立战争第一枪，拉开墨西哥脱离西班牙殖民统治的序幕。"
+    "event": "智利第一届国民政府在原总督辖区成立，开启脱离西班牙的独立进程，今为智利独立日。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1908,
+    "day": 18,
+    "year": 1851,
     "region": "国际",
-    "event": "1908年9月16日，威廉·杜兰特在密歇根州弗林特创立通用汽车公司（GM），后成为全球最大汽车制造商之一。"
+    "event": "《纽约每日时报》创刊，后更名为《纽约时报》，成为全球最具影响力的报纸之一。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1940,
+    "day": 18,
+    "year": 1947,
     "region": "国际",
-    "event": "1940年9月16日，美国总统罗斯福签署《选征兵役法》，建立美国历史上首个和平时期义务兵役制，应对二战局势。"
+    "event": "美国《国家安全法》生效，正式成立国防部、中央情报局、国家安全委员会与空军。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1975,
-    "region": "国际",
-    "event": "1975年9月16日，巴布亚新几内亚脱离澳大利亚正式独立，成为南太平洋地区主权国家。"
-  },
-  {
-    "month": 9,
-    "day": 16,
+    "day": 18,
     "year": 1977,
     "region": "国际",
-    "event": "1977年9月16日，希腊裔歌剧女神玛丽亚·卡拉斯在巴黎逝世，享年53岁，其卓越嗓音与戏剧表现力深刻影响了古典乐坛。"
+    "event": "旅行者1号拍下人类首张地球与月球同框照片，开启行星探测的视角革命。"
   },
   {
     "month": 9,
-    "day": 16,
-    "year": 1987,
+    "day": 18,
+    "year": 1981,
     "region": "国际",
-    "event": "1987年9月16日，《蒙特利尔议定书》签署，世界各国承诺逐步淘汰消耗臭氧层物质，成为最具成效的环境保护国际条约之一。"
+    "event": "法国国民议会投票废除死刑，成为欧洲人权立法的重要里程碑。"
+  },
+  {
+    "month": 9,
+    "day": 18,
+    "year": 2014,
+    "region": "国际",
+    "event": "苏格兰独立公投举行，55.3%选民选择留在英国，塑造了后续英国宪政辩论。"
   }
-];;;
+];
+;;;
 ;;;;;;;;;
 
 
@@ -5134,9 +5226,9 @@ function init() {
   $('#foodScanModal').addEventListener('click', function(e) { if (e.target === this) closeFoodScan(); });
 
   // 若上次同步/导入后要求恢复页面，则切回去并提示
-  const lastPage = storage.get('wb_last_page', '');
+  const lastPage = storage.get('last_page', '');
   if (lastPage) {
-    storage.set('wb_last_page', '');
+    storage.set('last_page', '');
     switchPage(lastPage);
     if (lastPage === 'settings') setTimeout(() => syncStatus('云端数据已恢复，可继续使用', 'ok'), 300);
   }
