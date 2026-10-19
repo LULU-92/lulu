@@ -8684,7 +8684,7 @@ function getAutoPush(){
 
   let s = storage.get(key, null);
 
-  const valid = s && s.date === todayKey() && s.v === 6 &&
+  const valid = s && s.date === todayKey() && s.v === 7 &&
 
     Array.isArray(s.words) && s.words.every(w => w && typeof w.phonetic === 'string');
 
@@ -8718,7 +8718,7 @@ function getAutoPush(){
 
   const newsOff = dayOfYear % newsMax;
 
-  s = { date: todayKey(), words: words, quoteIdx: quoteIdx, newsOff: newsOff, briefPage: 0, quoteClick: 0, v: 6 };
+  s = { date: todayKey(), words: words, quoteIdx: quoteIdx, newsOff: newsOff, briefPage: 0, quoteClick: 0, v: 7 };
 
   storage.set(key, s);
 
@@ -9195,8 +9195,646 @@ const wordsData = [
   { en:'standard', phonetic:'/ˈstændəd/', pos:'n./adj.', zh:'标准', example:"We meet industry standards.", exampleCn:"我们符合行业标准。" },
 
   { en:'procedure', phonetic:'/prəˈsiːdʒə(r)/', pos:'n.', zh:'流程，程序', example:"Follow the safety procedure.", exampleCn:"遵守安全流程。" },
+  // ===== 新增：日常交流常用词补充批次（确定性打散） =====
+  { en:'clever', phonetic:'/ˈklɛvɚ/', pos:'adj.', zh:'聪明的', example:'A clever way to pack.', exampleCn:'聪明的打包法。' },
 
+  { en:'order', phonetic:'/ˈɔːdə/', pos:'v.', zh:'订购', example:'Order a pizza online.', exampleCn:'在网上订个披萨。' },
 
+  { en:'run', phonetic:'/rʌn/', pos:'v.', zh:'跑', example:'She runs every morning.', exampleCn:'她每天早晨跑步。' },
+
+  { en:'answer', phonetic:'/ˈɑːnsə/', pos:'v.', zh:'回答', example:'Please answer my question.', exampleCn:'请回答我的问题。' },
+
+  { en:'accept', phonetic:'/ækˈsɛpt/', pos:'v.', zh:'接受', example:'She accepted the gift.', exampleCn:'她收下了礼物。' },
+
+  { en:'look', phonetic:'/lʊk/', pos:'v.', zh:'看起来', example:'You look tired today.', exampleCn:'你今天看起来很累。' },
+
+  { en:'foolish', phonetic:'/ˈfuː.lɪʃ/', pos:'adj.', zh:'愚蠢的', example:'A foolish thing to do.', exampleCn:'一件傻事。' },
+
+  { en:'box', phonetic:'/bɒks/', pos:'n.', zh:'盒子', example:'A box of old photos.', exampleCn:'一盒旧照片。' },
+
+  { en:'search', phonetic:'/sɜːt͡ʃ/', pos:'v.', zh:'搜索', example:'Search the web for recipes.', exampleCn:'上网搜菜谱。' },
+
+  { en:'frighten', phonetic:'/ˈfɹaɪtn̩/', pos:'v.', zh:'使害怕', example:'The movie frightened the child.', exampleCn:'电影吓到了孩子。' },
+
+  { en:'waiter', phonetic:'/ˈweɪtə/', pos:'n.', zh:'服务员', example:'The waiter took our order.', exampleCn:'服务员记下我们点的菜。' },
+
+  { en:'bedroom', phonetic:'/ˈbɛdɹʊm/', pos:'n.', zh:'卧室', example:'A tidy bedroom helps sleep.', exampleCn:'整洁的卧室助眠。' },
+
+  { en:'change', phonetic:'/tʃeɪndʒ/', pos:'v.', zh:'改变', example:'Change your clothes first.', exampleCn:'先换件衣服。' },
+
+  { en:'wide', phonetic:'/wɑed/', pos:'adj.', zh:'宽的', example:'A wide river flows by.', exampleCn:'一条宽河缓缓流过。' },
+
+  { en:'tea', phonetic:'/tiː/', pos:'n.', zh:'茶', example:'A pot of green tea.', exampleCn:'一壶绿茶。' },
+
+  { en:'rich', phonetic:'/ɹɪt͡ʃ/', pos:'adj.', zh:'富有的', example:'A rich flavor of cocoa.', exampleCn:'浓郁的可可风味。' },
+
+  { en:'salad', phonetic:'/ˈsæləd/', pos:'n.', zh:'沙拉', example:'A chicken Caesar salad.', exampleCn:'一份鸡肉凯撒沙拉。' },
+
+  { en:'shampoo', phonetic:'/ʃamˈpuː/', pos:'n.', zh:'洗发水', example:'A gentle daily shampoo.', exampleCn:'温和的日常洗发水。' },
+
+  { en:'rare', phonetic:'/ɹɛə(ɹ)/', pos:'adj.', zh:'稀有的', example:'A rare book found.', exampleCn:'找到一本稀有的书。' },
+
+  { en:'leave', phonetic:'/liːv/', pos:'v.', zh:'离开', example:'I leave home at eight.', exampleCn:'我八点出门。' },
+
+  { en:'browse', phonetic:'/bɹaʊz/', pos:'v.', zh:'浏览', example:'Browse the shop for shoes.', exampleCn:'逛店看看鞋子。' },
+
+  { en:'bread', phonetic:'/bɹeːd/', pos:'n.', zh:'面包', example:'Fresh bread for breakfast.', exampleCn:'早餐吃新鲜面包。' },
+
+  { en:'ship', phonetic:'/ʃɪp/', pos:'n.', zh:'船', example:'A ship out at sea.', exampleCn:'海上的一艘船。' },
+
+  { en:'rice', phonetic:'/ɹaɪs/', pos:'n.', zh:'米饭', example:'Rice is a staple food.', exampleCn:'米饭是主食。' },
+
+  { en:'bottle', phonetic:'/ˈbɑ.təl/', pos:'n.', zh:'瓶子', example:'A bottle of cold water.', exampleCn:'一瓶凉水。' },
+
+  { en:'wind', phonetic:'/ˈwaɪnd/', pos:'n.', zh:'风', example:'A strong cold wind.', exampleCn:'一阵凛冽寒风。' },
+
+  { en:'push', phonetic:'/pʊʃ/', pos:'v.', zh:'推', example:'Push the cart to the door.', exampleCn:'把推车推到门口。' },
+
+  { en:'evening', phonetic:'/ˈivnɪŋ/', pos:'n.', zh:'傍晚', example:'An evening stroll.', exampleCn:'傍晚散步。' },
+
+  { en:'broom', phonetic:'/bɹuːm/', pos:'n.', zh:'扫帚', example:'Sweep with a broom.', exampleCn:'用扫帚扫地。' },
+
+  { en:'continue', phonetic:'/kənˈtɪnjuː/', pos:'v.', zh:'继续', example:'Continue reading the book.', exampleCn:'继续看书。' },
+
+  { en:'grow', phonetic:'/ɡɹəʊ/', pos:'v.', zh:'生长；种植', example:'Plants grow fast in spring.', exampleCn:'植物在春天长得快。' },
+
+  { en:'peel', phonetic:'/piːl/', pos:'v.', zh:'削皮', example:'Peel the potatoes first.', exampleCn:'先把土豆去皮。' },
+
+  { en:'vegetable', phonetic:'/ˈvɛd͡ʒtəbəl/', pos:'n.', zh:'蔬菜', example:'Eat more vegetables.', exampleCn:'多吃蔬菜。' },
+
+  { en:'enjoy', phonetic:'/ənˈd͡ʒɔɪ/', pos:'v.', zh:'享受', example:'Enjoy your weekend!', exampleCn:'周末愉快！' },
+
+  { en:'messy', phonetic:'/ˈmɛsi/', pos:'adj.', zh:'凌乱的', example:'His room is messy.', exampleCn:'他的房间很乱。' },
+
+  { en:'year', phonetic:'/jɪə/', pos:'n.', zh:'年', example:'A new year begins.', exampleCn:'新的一年开始了。' },
+
+  { en:'moon', phonetic:'/muːn/', pos:'n.', zh:'月亮', example:'A full moon tonight.', exampleCn:'今夜一轮满月。' },
+
+  { en:'fever', phonetic:'/ˈfiːvə/', pos:'n.', zh:'发烧', example:'The child has a fever.', exampleCn:'孩子发烧了。' },
+
+  { en:'soft', phonetic:'/sɑft/', pos:'adj.', zh:'柔软的', example:'A soft pillow to rest.', exampleCn:'一个软软的枕头。' },
+
+  { en:'expensive', phonetic:'/ɛkˈspɛnsɪv/', pos:'adj.', zh:'昂贵的', example:'This watch is expensive.', exampleCn:'这块表很贵。' },
+
+  { en:'fear', phonetic:'/fɪə/', pos:'n.', zh:'恐惧', example:'Fear held her back.', exampleCn:'恐惧让她却步。' },
+
+  { en:'cold', phonetic:'/kɔʊld/', pos:'adj.', zh:'冷的', example:'The water is cold.', exampleCn:'水很凉。' },
+
+  { en:'summer', phonetic:'/ˈsʌmə(ɹ)/', pos:'n.', zh:'夏天', example:'Summer by the sea.', exampleCn:'海边过夏天。' },
+
+  { en:'tall', phonetic:'/tɔːl/', pos:'adj.', zh:'高的', example:'He is tall and slim.', exampleCn:'他高挑清瘦。' },
+
+  { en:'child', phonetic:'/t͡ʃaɪld/', pos:'n.', zh:'孩子', example:'A happy healthy child.', exampleCn:'一个快乐健康的孩子。' },
+
+  { en:'hat', phonetic:'/hæt/', pos:'n.', zh:'帽子', example:'A sun hat for beach.', exampleCn:'海滩戴的遮阳帽。' },
+
+  { en:'complex', phonetic:'/ˈkɒmpleks/', pos:'adj.', zh:'复杂的', example:'A complex machine part.', exampleCn:'一个复杂的机器零件。' },
+
+  { en:'remain', phonetic:'/ɹɪˈmeɪn/', pos:'v.', zh:'保持', example:'The store remains open.', exampleCn:'店还开着。' },
+
+  { en:'dangerous', phonetic:'/ˈdeɪnd͡ʒ(ə)ɹəs/', pos:'adj.', zh:'危险的', example:'A dangerous mountain road.', exampleCn:'危险的山路。' },
+
+  { en:'tomato', phonetic:'/təˈmɑːtəʊ/', pos:'n.', zh:'番茄', example:'Slice the tomato thin.', exampleCn:'把番茄切薄片。' },
+
+  { en:'dinner', phonetic:'/ˈdɪnə/', pos:'n.', zh:'晚餐', example:'Dinner is ready.', exampleCn:'晚饭好了。' },
+
+  { en:'drink', phonetic:'/drɪŋk/', pos:'v.', zh:'喝', example:'Drink more water every day.', exampleCn:'每天多喝水。' },
+
+  { en:'narrow', phonetic:'/ˈnæɹəʊ/', pos:'adj.', zh:'窄的', example:'A narrow path uphill.', exampleCn:'一条窄窄的上坡路。' },
+
+  { en:'warm', phonetic:'/wɔːm/', pos:'adj.', zh:'温暖的', example:'A warm blanket feels nice.', exampleCn:'暖和的毯子很舒服。' },
+
+  { en:'earn', phonetic:'/ɜːn/', pos:'v.', zh:'赚取', example:'She earns a good salary.', exampleCn:'她薪水不错。' },
+
+  { en:'onion', phonetic:'/ˈʌŋjɪn/', pos:'n.', zh:'洋葱', example:'Chop the onion fine.', exampleCn:'把洋葱切碎。' },
+
+  { en:'disturb', phonetic:'/dɪsˈtɜːb/', pos:'v.', zh:'打扰', example:'Sorry to disturb you.', exampleCn:'抱歉打扰你。' },
+
+  { en:'chair', phonetic:'/t͡ʃɛə(ɹ)/', pos:'n.', zh:'椅子', example:'Pull up a chair.', exampleCn:'拉把椅子过来。' },
+
+  { en:'towel', phonetic:'/taʊl/', pos:'n.', zh:'毛巾', example:'A clean dry towel.', exampleCn:'一条干净毛巾。' },
+
+  { en:'complain', phonetic:'/kəmˈpleɪn/', pos:'v.', zh:'抱怨', example:'He complained about the noise.', exampleCn:'他抱怨噪音太大。' },
+
+  { en:'scroll', phonetic:'/skrəʊl/', pos:'v.', zh:'滚动', example:'Scroll down to read more.', exampleCn:'向下滚动看更多。' },
+
+  { en:'hope', phonetic:'/həʊp/', pos:'v.', zh:'希望', example:'I hope it stops raining.', exampleCn:'希望雨停了。' },
+
+  { en:'candle', phonetic:'/ˈkændl̩/', pos:'n.', zh:'蜡烛', example:'Light a scented candle.', exampleCn:'点一支香薰蜡烛。' },
+
+  { en:'cook', phonetic:'/kuːk/', pos:'v.', zh:'烹饪', example:'She cooks dinner for us.', exampleCn:'她为我们做晚饭。' },
+
+  { en:'big', phonetic:'/bɪɡ/', pos:'adj.', zh:'大的', example:'A big dog ran over.', exampleCn:'一只大狗跑了过来。' },
+
+  { en:'safe', phonetic:'/seɪf/', pos:'adj.', zh:'安全的', example:'A safe place to park.', exampleCn:'安全的停车处。' },
+
+  { en:'pepper', phonetic:'/ˈpɛpə/', pos:'n.', zh:'胡椒', example:'Black pepper on steak.', exampleCn:'牛排撒黑胡椒。' },
+
+  { en:'cancel', phonetic:'/ˈkænsl̩/', pos:'v.', zh:'取消', example:'Cancel the meeting, please.', exampleCn:'请取消会议。' },
+
+  { en:'season', phonetic:'/ˈsiːzən/', pos:'n.', zh:'季节', example:'My favorite season is fall.', exampleCn:'我最爱秋天。' },
+
+  { en:'pill', phonetic:'/pɪl/', pos:'n.', zh:'药丸', example:'A pill after meals.', exampleCn:'饭后一粒药。' },
+
+  { en:'yawn', phonetic:'/jɔːn/', pos:'v.', zh:'打哈欠', example:'He yawned after lunch.', exampleCn:'他午饭后打了个哈欠。' },
+
+  { en:'camera', phonetic:'/ˈkæməɹə/', pos:'n.', zh:'相机', example:'Bring a camera for trip.', exampleCn:'旅行带上相机。' },
+
+  { en:'record', phonetic:'/ˈɹɛkɔːd/', pos:'v.', zh:'记录', example:'Record the meeting notes.', exampleCn:'记录会议要点。' },
+
+  { en:'possible', phonetic:'/ˈpɒsɪbl̩/', pos:'adj.', zh:'可能的', example:'Is it possible to leave?', exampleCn:'有可能离开吗？' },
+
+  { en:'shame', phonetic:'/ʃeɪm/', pos:'n.', zh:'羞耻', example:'He felt deep shame.', exampleCn:'他深感羞愧。' },
+
+  { en:'agree', phonetic:'/əˈɡriː/', pos:'v.', zh:'同意', example:'I agree with you.', exampleCn:'我同意你。' },
+
+  { en:'fake', phonetic:'/feɪk/', pos:'adj.', zh:'假的', example:'A fake designer watch.', exampleCn:'仿冒的名表。' },
+
+  { en:'understand', phonetic:'/ˌɞndəɹˈstand/', pos:'v.', zh:'理解', example:'I understand your point.', exampleCn:'我理解你的意思。' },
+
+  { en:'sharp', phonetic:'/ʃɑːp/', pos:'adj.', zh:'锋利的', example:'A sharp kitchen knife.', exampleCn:'一把锋利的厨刀。' },
+
+  { en:'difficult', phonetic:'/ˈdɪfɪkəlt/', pos:'adj.', zh:'困难的', example:'A difficult choice to make.', exampleCn:'一个艰难的选择。' },
+
+  { en:'forget', phonetic:'/fəˈɡɛt/', pos:'v.', zh:'忘记', example:"Don't forget your keys.", exampleCn:'别忘了你的钥匙。' },
+
+  { en:'encourage', phonetic:'/ɪnˈkʌɹɪdʒ/', pos:'v.', zh:'鼓励', example:'Encourage the kids to try.', exampleCn:'鼓励孩子们去尝试。' },
+
+  { en:'taxi', phonetic:'/ˈtæk.si/', pos:'n.', zh:'出租车', example:'Hail a taxi outside.', exampleCn:'在外面拦辆出租车。' },
+
+  { en:'apple', phonetic:'/ˈæp.əl/', pos:'n.', zh:'苹果', example:'An apple a day.', exampleCn:'一天一苹果。' },
+
+  { en:'sweet', phonetic:'/swiːt/', pos:'adj.', zh:'甜的', example:'A sweet ripe mango.', exampleCn:'一个甜熟芒果。' },
+
+  { en:'sandwich', phonetic:'/ˈsæmwɪd͡ʒ/', pos:'n.', zh:'三明治', example:'A ham sandwich for lunch.', exampleCn:'午餐一个火腿三明治。' },
+
+  { en:'juice', phonetic:'/dʒuːs/', pos:'n.', zh:'果汁', example:'Orange juice at brunch.', exampleCn:'早午餐喝橙汁。' },
+
+  { en:'pack', phonetic:'/pæk/', pos:'v.', zh:'打包', example:'Pack your suitcase tonight.', exampleCn:'今晚把行李箱装好。' },
+
+  { en:'sick', phonetic:'/sɪk/', pos:'adj.', zh:'生病的', example:'I felt sick last night.', exampleCn:'昨晚我觉得不舒服。' },
+
+  { en:'pharmacy', phonetic:'/ˈfɑːməsi/', pos:'n.', zh:'药店', example:'Buy it at a pharmacy.', exampleCn:'在药店买。' },
+
+  { en:'glass', phonetic:'/ɡlɑːs/', pos:'n.', zh:'玻璃杯', example:'A glass of water.', exampleCn:'一杯水。' },
+
+  { en:'patient', phonetic:'/ˈpeɪʃənt/', pos:'adj.', zh:'耐心的', example:'A patient language tutor.', exampleCn:'耐心的语言老师。' },
+
+  { en:'medicine', phonetic:'/ˈmedisn/', pos:'n.', zh:'药', example:'Take the medicine on time.', exampleCn:'按时吃药。' },
+
+  { en:'mop', phonetic:'/mɒp/', pos:'n.', zh:'拖把', example:'Mop the kitchen floor.', exampleCn:'拖一下厨房地面。' },
+
+  { en:'host', phonetic:'/həʊst/', pos:'n.', zh:'主人', example:'The host welcomed us.', exampleCn:'主人欢迎了我们。' },
+
+  { en:'young', phonetic:'/jʌŋ/', pos:'adj.', zh:'年轻的', example:'A young student here.', exampleCn:'这里一位年轻学生。' },
+
+  { en:'car', phonetic:'/kɑː/', pos:'n.', zh:'汽车', example:'Park the car nearby.', exampleCn:'把车停在附近。' },
+
+  { en:'describe', phonetic:'/dɪˈskraɪb/', pos:'v.', zh:'描述', example:'Can you describe the suspect?', exampleCn:'你能描述一下嫌疑人吗？' },
+
+  { en:'keyboard', phonetic:'/ˈkiːbɔːd/', pos:'n.', zh:'键盘', example:'A quiet mechanical keyboard.', exampleCn:'一把安静的机械键盘。' },
+
+  { en:'clear', phonetic:'/klɪə(ɹ)/', pos:'adj.', zh:'清晰的', example:'A clear blue sky.', exampleCn:'清澈的蓝天。' },
+
+  { en:'lunch', phonetic:'/lʌnt͡ʃ/', pos:'n.', zh:'午餐', example:'Lunch with a friend.', exampleCn:'和朋友吃午饭。' },
+
+  { en:'soap', phonetic:'/səʊp/', pos:'n.', zh:'肥皂', example:'Wash hands with soap.', exampleCn:'用肥皂洗手。' },
+
+  { en:'phone', phonetic:'/fəʊ̯n/', pos:'n.', zh:'手机', example:'My phone is charging.', exampleCn:'我的手机在充电。' },
+
+  { en:'funny', phonetic:'/ˈfʊnɪ/', pos:'adj.', zh:'有趣的', example:'A funny short video.', exampleCn:'一个好笑的短视频。' },
+
+  { en:'recover', phonetic:'/ɹɪˈkʌvə/', pos:'v.', zh:'恢复', example:'He recovered from a cold.', exampleCn:'他的感冒好了。' },
+
+  { en:'friend', phonetic:'/fɹɛnd/', pos:'n.', zh:'朋友', example:'A friend from college.', exampleCn:'一位大学朋友。' },
+
+  { en:'peace', phonetic:'/piːs/', pos:'n.', zh:'平静', example:'A moment of peace.', exampleCn:'一刻的宁静。' },
+
+  { en:'comfort', phonetic:'/ˈkʊm.fət/', pos:'v.', zh:'安慰', example:'She comforted the crying boy.', exampleCn:'她安慰了哭泣的男孩。' },
+
+  { en:'watch', phonetic:'/wɒtʃ/', pos:'v.', zh:'观看', example:'We watched a movie.', exampleCn:'我们看了一部电影。' },
+
+  { en:'wise', phonetic:'/waɪz/', pos:'adj.', zh:'明智的', example:'A wise old saying.', exampleCn:'一句睿智的老话。' },
+
+  { en:'tissue', phonetic:'/ˈtɪʃuː/', pos:'n.', zh:'纸巾', example:'Pass me a tissue.', exampleCn:'递张纸巾给我。' },
+
+  { en:'early', phonetic:'/ˈɜː.li/', pos:'adj.', zh:'早的', example:'An early bus at six.', exampleCn:'六点的早班车。' },
+
+  { en:'small', phonetic:'/smɔːl/', pos:'adj.', zh:'小的', example:'A small cat slept here.', exampleCn:'一只小猫睡在这儿。' },
+
+  { en:'cat', phonetic:'/kat/', pos:'n.', zh:'猫', example:'The cat slept on sofa.', exampleCn:'猫睡在沙发上。' },
+
+  { en:'wife', phonetic:'/waɪf/', pos:'n.', zh:'妻子', example:'His wife is a teacher.', exampleCn:'他妻子是老师。' },
+
+  { en:'door', phonetic:'/dɔː/', pos:'n.', zh:'门', example:'Lock the door at night.', exampleCn:'夜里锁好门。' },
+
+  { en:'need', phonetic:'/niːd/', pos:'v.', zh:'需要', example:'We need more time.', exampleCn:'我们需要更多时间。' },
+
+  { en:'increase', phonetic:'/ɪnˈkriːs/', pos:'v.', zh:'增加', example:'Prices increased this year.', exampleCn:'今年物价涨了。' },
+
+  { en:'pull', phonetic:'/pʊl/', pos:'v.', zh:'拉', example:'Pull the rope slowly.', exampleCn:'慢慢拉绳子。' },
+
+  { en:'noisy', phonetic:'/ˈnɔːɪzɪ/', pos:'adj.', zh:'喧闹的', example:'A noisy street outside.', exampleCn:'外面喧闹的街道。' },
+
+  { en:'afternoon', phonetic:'/af.təɾˈnʉːn/', pos:'n.', zh:'下午', example:'A lazy Sunday afternoon.', exampleCn:'慵懒的周日下午。' },
+
+  { en:'sugar', phonetic:'/ˈʃʊɡə(ɹ)/', pos:'n.', zh:'糖', example:'Less sugar in tea.', exampleCn:'茶里少放糖。' },
+
+  { en:'large', phonetic:'/ˈlɑːd͡ʒ/', pos:'adj.', zh:'巨大的', example:'We ordered a large pizza.', exampleCn:'我们点了一个大披萨。' },
+
+  { en:'new', phonetic:'/njʉː/', pos:'adj.', zh:'新的', example:'A new phone arrived.', exampleCn:'新手机到了。' },
+
+  { en:'kind', phonetic:'/kaɪnd/', pos:'adj.', zh:'善良的', example:'A kind gesture from her.', exampleCn:'她善意的一个举动。' },
+
+  { en:'well', phonetic:'/wel/', pos:'adj.', zh:'健康的', example:'I hope you get well soon.', exampleCn:'希望你早日康复。' },
+
+  { en:'wait', phonetic:'/weɪt/', pos:'v.', zh:'等待', example:'Wait for me at the gate.', exampleCn:'在门口等我。' },
+
+  { en:'decide', phonetic:'/dɪˈsaɪd/', pos:'v.', zh:'决定', example:'We decided to go hiking.', exampleCn:'我们决定去徒步。' },
+
+  { en:'prefer', phonetic:'/pɹɪˈfɜː/', pos:'v.', zh:'更喜欢', example:'I prefer tea to coffee.', exampleCn:'比起咖啡我更喜欢茶。' },
+
+  { en:'wallet', phonetic:'/ˈwɒlɪt/', pos:'n.', zh:'钱包', example:'My wallet is in the bag.', exampleCn:'钱包在包里。' },
+
+  { en:'spring', phonetic:'/spɹɪŋ/', pos:'n.', zh:'春天', example:'Spring brings new blooms.', exampleCn:'春天带来新花。' },
+
+  { en:'drawer', phonetic:'/dɹɔː(ɹ)/', pos:'n.', zh:'抽屉', example:'Keys in the drawer.', exampleCn:'钥匙在抽屉里。' },
+
+  { en:'expect', phonetic:'/ɛkˈspɛkt/', pos:'v.', zh:'期待', example:'I expect a reply soon.', exampleCn:'我很快会收到回复。' },
+
+  { en:'fork', phonetic:'/fɔːk/', pos:'n.', zh:'叉子', example:'Eat with a fork.', exampleCn:'用叉子吃。' },
+
+  { en:'cry', phonetic:'/kɹaɪ̯/', pos:'v.', zh:'哭', example:'The baby cried all night.', exampleCn:'宝宝哭了一整夜。' },
+
+  { en:'boil', phonetic:'/bɔɪl/', pos:'v.', zh:'煮（沸）', example:'Boil the water for tea.', exampleCn:'烧水煮茶。' },
+
+  { en:'charge', phonetic:'/t͡ʃɑːd͡ʒ/', pos:'v.', zh:'收费', example:'They charge by the hour.', exampleCn:'他们按小时收费。' },
+
+  { en:'click', phonetic:'/klɪk/', pos:'v.', zh:'点击', example:'Click the blue button.', exampleCn:'点击蓝色按钮。' },
+
+  { en:'thin', phonetic:'/ˈθɪn/', pos:'adj.', zh:'薄的；瘦的', example:'A thin slice of bread.', exampleCn:'一片薄面包。' },
+
+  { en:'familiar', phonetic:'/fəˈmɪliə/', pos:'adj.', zh:'熟悉的', example:'A familiar old song.', exampleCn:'一首熟悉的老歌。' },
+
+  { en:'test', phonetic:'/test/', pos:'v.', zh:'测试', example:'Test the new feature.', exampleCn:'测试新功能。' },
+
+  { en:'flight', phonetic:'/flaɪt/', pos:'n.', zh:'航班', example:'Our flight is on time.', exampleCn:'我们的航班准点。' },
+
+  { en:'late', phonetic:'/leɪt/', pos:'adj.', zh:'晚的', example:'A late reply from him.', exampleCn:'他回复得晚。' },
+
+  { en:'party', phonetic:'/ˈpɑ(ː)ɾi/', pos:'n.', zh:'聚会', example:'A small dinner party.', exampleCn:'一场小型晚宴。' },
+
+  { en:'autumn', phonetic:'/ˈɔːtəm/', pos:'n.', zh:'秋天', example:'Autumn leaves turn red.', exampleCn:'秋叶变红。' },
+
+  { en:'discover', phonetic:'/dɪˈskʌvə/', pos:'v.', zh:'发现', example:'They discovered a new cafe.', exampleCn:'他们发现了一家新咖啡馆。' },
+
+  { en:'swim', phonetic:'/swɪm/', pos:'v.', zh:'游泳', example:'We swim in the lake.', exampleCn:'我们在湖里游泳。' },
+
+  { en:'coat', phonetic:'/kəʊt/', pos:'n.', zh:'外套', example:'A warm winter coat.', exampleCn:'一件暖冬外套。' },
+
+  { en:'real', phonetic:'/rɪəl/', pos:'adj.', zh:'真实的', example:'A real leather bag.', exampleCn:'真牛皮包。' },
+
+  { en:'shirt', phonetic:'/ʃɜːt/', pos:'n.', zh:'衬衫', example:'A white cotton shirt.', exampleCn:'一件白棉衬衫。' },
+
+  { en:'stomach', phonetic:'/ˈstʌmək/', pos:'n.', zh:'胃；肚子', example:'My stomach feels odd.', exampleCn:'我胃不太舒服。' },
+
+  { en:'fish', phonetic:'/fɪʃ/', pos:'n.', zh:'鱼', example:'Fresh fish at the market.', exampleCn:'市场里有鲜鱼。' },
+
+  { en:'forgive', phonetic:'/fɚˈɡɪv/', pos:'v.', zh:'原谅', example:'Forgive me for the mistake.', exampleCn:'请原谅我的过失。' },
+
+  { en:'angry', phonetic:'/ˈæŋɡri/', pos:'adj.', zh:'生气的', example:'He was angry at the delay.', exampleCn:'他对延误很生气。' },
+
+  { en:'nurse', phonetic:'/nɜːs/', pos:'n.', zh:'护士', example:'The nurse was kind.', exampleCn:'护士很和善。' },
+
+  { en:'allow', phonetic:'/əˈlaʊ/', pos:'v.', zh:'允许', example:'Pets are not allowed.', exampleCn:'不允许带宠物。' },
+
+  { en:'listen', phonetic:'/ˈlɪs.ən/', pos:'v.', zh:'听', example:'Listen to the music.', exampleCn:'听音乐吧。' },
+
+  { en:'bike', phonetic:'/baɪk/', pos:'n.', zh:'自行车', example:'Ride a bike to lake.', exampleCn:'骑车去湖边。' },
+
+  { en:'unpack', phonetic:'/ʌnˈpæk/', pos:'v.', zh:'拆包', example:'Unpack after you arrive.', exampleCn:'到了之后把行李打开。' },
+
+  { en:'busy', phonetic:'/ˈbɪzi/', pos:'adj.', zh:'忙碌的', example:'A busy morning ahead.', exampleCn:'一个忙碌的早晨。' },
+
+  { en:'honest', phonetic:'/ˈɒnɪst/', pos:'adj.', zh:'诚实的', example:'An honest close friend.', exampleCn:'一位诚实的挚友。' },
+
+  { en:'quiet', phonetic:'/ˈkwaɪ.ət/', pos:'adj.', zh:'安静的', example:'A quiet library corner.', exampleCn:'图书馆安静的角落。' },
+
+  { en:'cheap', phonetic:'/t͡ʃiːp/', pos:'adj.', zh:'便宜的', example:'A cheap meal nearby.', exampleCn:'附近一顿便宜的饭。' },
+
+  { en:'empty', phonetic:'/ˈɛmpti/', pos:'adj.', zh:'空的', example:'The bottle is empty.', exampleCn:'瓶子空了。' },
+
+  { en:'detergent', phonetic:'/dɪˈtɜːdʒənt/', pos:'n.', zh:'洗涤剂', example:'Add detergent to the wash.', exampleCn:'洗衣时加洗涤剂。' },
+
+  { en:'bill', phonetic:'/bɪl/', pos:'n.', zh:'账单；纸币', example:'Pay the electricity bill.', exampleCn:'交电费账单。' },
+
+  { en:'impress', phonetic:'/ˈɪmpɹɛs/', pos:'v.', zh:'使印象深刻', example:'His speech impressed us.', exampleCn:'他的演讲令我们印象深刻。' },
+
+  { en:'drop', phonetic:'/dɹɒp/', pos:'v.', zh:'掉落', example:'I dropped my phone.', exampleCn:'我把手机掉地上了。' },
+
+  { en:'brother', phonetic:'/ˈbɹɐðɘ(ɹ)/', pos:'n.', zh:'兄弟', example:'My brother lives abroad.', exampleCn:'我哥住在国外。' },
+
+  { en:'milk', phonetic:'/mɪlk/', pos:'n.', zh:'牛奶', example:'A glass of warm milk.', exampleCn:'一杯温牛奶。' },
+
+  { en:'friendly', phonetic:'/ˈfɹɛndli/', pos:'adj.', zh:'友好的', example:'A friendly local guide.', exampleCn:'友好的当地向导。' },
+
+  { en:'worry', phonetic:'/ˈwɒɹi/', pos:'v.', zh:'担心', example:"Don't worry about me.", exampleCn:'别担心我。' },
+
+  { en:'hospital', phonetic:'/ˈhɒs.pɪ.tl̩/', pos:'n.', zh:'医院', example:'Go to the hospital now.', exampleCn:'现在去医院。' },
+
+  { en:'fix', phonetic:'/ˈfɪks/', pos:'v.', zh:'修理', example:'He fixed the broken chair.', exampleCn:'他修好了坏掉的椅子。' },
+
+  { en:'call', phonetic:'/kɔːl/', pos:'v.', zh:'打电话', example:'Call me when you are free.', exampleCn:'有空给我打电话。' },
+
+  { en:'ferry', phonetic:'/ˈferi/', pos:'n.', zh:'渡轮', example:'Take the ferry across.', exampleCn:'坐渡轮过江。' },
+
+  { en:'serve', phonetic:'/sɜːv/', pos:'v.', zh:'上菜；服务', example:'Serve the soup hot.', exampleCn:'热汤趁热上。' },
+
+  { en:'fry', phonetic:'/fɹaɪ/', pos:'v.', zh:'煎炸', example:'Fry the eggs in butter.', exampleCn:'用黄油煎蛋。' },
+
+  { en:'laugh', phonetic:'/laːf/', pos:'v.', zh:'大笑', example:'The joke made us laugh.', exampleCn:'那个笑话把我们逗笑了。' },
+
+  { en:'nervous', phonetic:'/ˈnɜːvəs/', pos:'adj.', zh:'紧张的', example:'Nervous before the test.', exampleCn:'考试前很紧张。' },
+
+  { en:'impatient', phonetic:'/ɪmˈpeɪʃnt/', pos:'adj.', zh:'不耐烦的', example:'An impatient long queue.', exampleCn:'让人不耐烦的长队。' },
+
+  { en:'clean', phonetic:'/kleːn/', pos:'v.', zh:'打扫', example:'We clean the room weekly.', exampleCn:'我们每周打扫房间。' },
+
+  { en:'sour', phonetic:'/ˈsaʊə/', pos:'adj.', zh:'酸的', example:'Sour lemons for tea.', exampleCn:'泡茶的酸柠檬。' },
+
+  { en:'exciting', phonetic:'/ɪkˈsaɪtɪŋ/', pos:'adj.', zh:'令人兴奋的', example:'An exciting game to watch.', exampleCn:'一场激动人心的比赛。' },
+
+  { en:'glove', phonetic:'/ɡlʌv/', pos:'n.', zh:'手套', example:'Wear a glove to clean.', exampleCn:'打扫时戴手套。' },
+
+  { en:'rest', phonetic:'/rest/', pos:'v.', zh:'休息', example:'Rest for ten minutes.', exampleCn:'休息十分钟。' },
+
+  { en:'proud', phonetic:'/pɹaʊd/', pos:'adj.', zh:'自豪的', example:'Proud of your progress.', exampleCn:'为你的进步自豪。' },
+
+  { en:'explain', phonetic:'/ɪkˈspleɪn/', pos:'v.', zh:'解释', example:'Explain it in simple words.', exampleCn:'用简单的话解释一下。' },
+
+  { en:'try', phonetic:'/tɹaɪ/', pos:'v.', zh:'尝试', example:'Try this new dish.', exampleCn:'尝尝这道新菜。' },
+
+  { en:'joy', phonetic:'/dʒɔɪ/', pos:'n.', zh:'喜悦', example:'She smiled with joy.', exampleCn:'她喜滋滋地笑了。' },
+
+  { en:'money', phonetic:'/ˈmʌni/', pos:'n.', zh:'钱', example:'Save your money wisely.', exampleCn:'理智地存钱。' },
+
+  { en:'text', phonetic:'/tɛkst/', pos:'v.', zh:'发短信', example:'Text me the address.', exampleCn:'把地址用短信发我。' },
+
+  { en:'apologize', phonetic:'/əˈpɒləd͡ʒaɪz/', pos:'v.', zh:'道歉', example:'I apologized for being late.', exampleCn:'我为迟到道了歉。' },
+
+  { en:'sleep', phonetic:'/sliːp/', pos:'v.', zh:'睡觉', example:'The baby sleeps peacefully.', exampleCn:'宝宝睡得很安稳。' },
+
+  { en:'driver', phonetic:'/ˈdɹaɪ.və(ɹ)/', pos:'n.', zh:'司机', example:'The driver was polite.', exampleCn:'司机很有礼貌。' },
+
+  { en:'dislike', phonetic:'/dɪsˈlaɪk/', pos:'v.', zh:'不喜欢', example:'I dislike crowded places.', exampleCn:'我不喜欢人多拥挤的地方。' },
+
+  { en:'subway', phonetic:'/ˈsʌbˌweɪ/', pos:'n.', zh:'地铁', example:'Take the subway downtown.', exampleCn:'坐地铁去市区。' },
+
+  { en:'street', phonetic:'/stɹiːt/', pos:'n.', zh:'街道', example:'A quiet tree-lined street.', exampleCn:'一条安静的林荫街。' },
+
+  { en:'measure', phonetic:'/ˈmeʒə/', pos:'v.', zh:'测量', example:'Measure the water in cups.', exampleCn:'用量杯量水。' },
+
+  { en:'noon', phonetic:'/nuːn/', pos:'n.', zh:'中午', example:'Lunch at noon sharp.', exampleCn:'正午准时吃饭。' },
+
+  { en:'wet', phonetic:'/wɛt/', pos:'adj.', zh:'湿的', example:'Wet clothes after rain.', exampleCn:'雨后湿透的衣服。' },
+
+  { en:'avoid', phonetic:'/əˈvɔɪd/', pos:'v.', zh:'避免', example:'Avoid sugary drinks.', exampleCn:'少喝含糖饮料。' },
+
+  { en:'boredom', phonetic:'/ˈbɔːdəm/', pos:'n.', zh:'无聊', example:'Boredom at the wait.', exampleCn:'等待时的无聊。' },
+
+  { en:'cool', phonetic:'/kuːl/', pos:'adj.', zh:'凉爽的', example:'It is cool in the evening.', exampleCn:'傍晚很凉爽。' },
+
+  { en:'deliver', phonetic:'/dɪˈlɪvə(ɹ)/', pos:'v.', zh:'递送', example:'They deliver food fast.', exampleCn:'他们送餐很快。' },
+
+  { en:'kitchen', phonetic:'/ˈkɪt͡ʃən/', pos:'n.', zh:'厨房', example:'Clean the kitchen daily.', exampleCn:'每天打扫厨房。' },
+
+  { en:'become', phonetic:'/bəˈkʊm/', pos:'v.', zh:'变得', example:'It became cold at night.', exampleCn:'夜里变冷了。' },
+
+  { en:'family', phonetic:'/ˈfɛm(ɘ)li/', pos:'n.', zh:'家人', example:'Family dinner on Sunday.', exampleCn:'周日家庭聚餐。' },
+
+  { en:'ticket', phonetic:'/ˈtɪkɪt/', pos:'n.', zh:'票', example:'Show your ticket at gate.', exampleCn:'在闸口出示车票。' },
+
+  { en:'knife', phonetic:'/naɪf/', pos:'n.', zh:'刀', example:'A sharp kitchen knife.', exampleCn:'一把锋利的厨刀。' },
+
+  { en:'draw', phonetic:'/dɹɔː/', pos:'v.', zh:'画', example:'She drew a cat.', exampleCn:'她画了一只猫。' },
+
+  { en:'hate', phonetic:'/heɪt/', pos:'v.', zh:'讨厌', example:'I hate being late.', exampleCn:'我讨厌迟到。' },
+
+  { en:'suitcase', phonetic:'/ˈsuːtkeɪs/', pos:'n.', zh:'行李箱', example:'Pack the suitcase tight.', exampleCn:'把行李箱装紧。' },
+
+  { en:'slow', phonetic:'/sləʊ/', pos:'adj.', zh:'慢的', example:'A slow internet line.', exampleCn:'缓慢的网络。' },
+
+  { en:'winter', phonetic:'/ˈwɪntɚ/', pos:'n.', zh:'冬天', example:'Winter is cold here.', exampleCn:'这里冬天很冷。' },
+
+  { en:'upload', phonetic:'/ˌʌpˈləʊd/', pos:'v.', zh:'上传', example:'Upload the photo to the cloud.', exampleCn:'把照片上传到云端。' },
+
+  { en:'hair', phonetic:'/heː/', pos:'n.', zh:'头发', example:'Her hair is long.', exampleCn:'她头发很长。' },
+
+  { en:'thick', phonetic:'/θɪk/', pos:'adj.', zh:'厚的', example:'A thick winter coat.', exampleCn:'一件厚冬衣。' },
+
+  { en:'shoes', phonetic:'/ʃuːz/', pos:'n.', zh:'鞋', example:'Tie your shoes tight.', exampleCn:'把鞋带系紧。' },
+
+  { en:'pride', phonetic:'/pɹaɪd/', pos:'n.', zh:'自豪', example:'Pride in her work.', exampleCn:'为她的工作自豪。' },
+
+  { en:'win', phonetic:'/wɪn/', pos:'v.', zh:'赢', example:'Our team won the game.', exampleCn:'我们队赢了比赛。' },
+
+  { en:'careless', phonetic:'/ˈkɛələs/', pos:'adj.', zh:'粗心的', example:'A careless typing error.', exampleCn:'一个粗心的输入错误。' },
+
+  { en:'pencil', phonetic:'/ˈpɛnsɪl/', pos:'n.', zh:'铅笔', example:'Sketch with a pencil.', exampleCn:'用铅笔素描。' },
+
+  { en:'anger', phonetic:'/ˈæŋɡə(ɹ)/', pos:'n.', zh:'愤怒', example:'He spoke in anger.', exampleCn:'他气冲冲地说。' },
+
+  { en:'calm', phonetic:'/kam/', pos:'v.', zh:'使平静', example:'Calm down and breathe.', exampleCn:'冷静下来，深呼吸。' },
+
+  { en:'shelf', phonetic:'/ʃɛlf/', pos:'n.', zh:'架子', example:'Books on the shelf.', exampleCn:'架子上的书。' },
+
+  { en:'screen', phonetic:'/skɹiːn/', pos:'n.', zh:'屏幕', example:'Wipe the screen clean.', exampleCn:'把屏幕擦干净。' },
+
+  { en:'argue', phonetic:'/ˈɑː.ɡjuː/', pos:'v.', zh:'争论', example:'They argued about the bill.', exampleCn:'他们为账单吵了起来。' },
+
+  { en:'snack', phonetic:'/snæk/', pos:'n.', zh:'零食', example:'A light afternoon snack.', exampleCn:'午后小零食。' },
+
+  { en:'boring', phonetic:'/ˈbɔːɹɪŋ/', pos:'adj.', zh:'无聊的', example:'A boring long meeting.', exampleCn:'一场无聊的长会。' },
+
+  { en:'chicken', phonetic:'/ˈt͡ʃɪkɪn/', pos:'n.', zh:'鸡肉', example:'Grilled chicken for dinner.', exampleCn:'晚餐烤鸡。' },
+
+  { en:'common', phonetic:'/ˈkɒmən/', pos:'adj.', zh:'常见的', example:'A common mistake to avoid.', exampleCn:'一个常见的错误。' },
+
+  { en:'mention', phonetic:'/ˈmɛnʃən/', pos:'v.', zh:'提及', example:'He mentioned a new plan.', exampleCn:'他提到了一个新计划。' },
+
+  { en:'write', phonetic:'/raɪt/', pos:'v.', zh:'写', example:'Write your name here.', exampleCn:'在这里写下你的名字。' },
+
+  { en:'mirror', phonetic:'/ˈmɘ.ɹɘ/', pos:'n.', zh:'镜子', example:'Look in the mirror.', exampleCn:'照照镜子。' },
+
+  { en:'hard', phonetic:'/hɑːd/', pos:'adj.', zh:'硬的；难的', example:'The exam was hard.', exampleCn:'考试很难。' },
+
+  { en:'toy', phonetic:'/tɔɪ/', pos:'n.', zh:'玩具', example:'A toy for the kid.', exampleCn:'给孩子一个玩具。' },
+
+  { en:'strong', phonetic:'/stɹɑŋ/', pos:'adj.', zh:'强壮的', example:'A strong cup of coffee.', exampleCn:'一杯浓咖啡。' },
+
+  { en:'break', phonetic:'/bɹeɪk/', pos:'v.', zh:'打破', example:'Be careful not to break it.', exampleCn:'小心别弄碎了。' },
+
+  { en:'strict', phonetic:'/stɹɪkt/', pos:'adj.', zh:'严格的', example:'A strict gym coach.', exampleCn:'严格的健身教练。' },
+
+  { en:'hungry', phonetic:'/ˈhʌŋ.ɡɹi/', pos:'adj.', zh:'饿的', example:'Are you hungry yet?', exampleCn:'你饿了吗？' },
+
+  { en:'produce', phonetic:'/pɹəˈdjuːs/', pos:'v.', zh:'生产', example:'The farm produces organic eggs.', exampleCn:'农场生产有机鸡蛋。' },
+
+  { en:'pay', phonetic:'/peɪ/', pos:'v.', zh:'支付', example:'Please pay by card.', exampleCn:'请用卡支付。' },
+
+  { en:'jealousy', phonetic:'/ˈdʒɛləsi/', pos:'n.', zh:'嫉妒', example:'Jealousy spoiled the mood.', exampleCn:'嫉妒破坏了气氛。' },
+
+  { en:'visit', phonetic:'/ˈvɪzɪt/', pos:'v.', zh:'拜访', example:'We visited our grandma.', exampleCn:'我们去看望了奶奶。' },
+
+  { en:'tree', phonetic:'/tɹiː/', pos:'n.', zh:'树', example:'A tall green tree.', exampleCn:'一棵高大的绿树。' },
+
+  { en:'fruit', phonetic:'/fɹuːt/', pos:'n.', zh:'水果', example:'A bowl of fresh fruit.', exampleCn:'一碗新鲜水果。' },
+
+  { en:'pet', phonetic:'/pɛt/', pos:'n.', zh:'宠物', example:'A friendly little pet.', exampleCn:'一只亲人的小宠物。' },
+
+  { en:'awful', phonetic:'/ˈɔːfəl/', pos:'adj.', zh:'可怕的', example:'An awful smell here.', exampleCn:'这里一股难闻味。' },
+
+  { en:'fresh', phonetic:'/fɹɛʃ/', pos:'adj.', zh:'新鲜的', example:'Fresh bread in the morning.', exampleCn:'早晨的新鲜面包。' },
+
+  { en:'table', phonetic:'/ˈteɪbəl/', pos:'n.', zh:'桌子', example:'Set the table for dinner.', exampleCn:'摆好餐桌吃晚饭。' },
+
+  { en:'great', phonetic:'/ɡɹeɪt/', pos:'adj.', zh:'很棒的', example:'A great idea indeed.', exampleCn:'真是个好主意。' },
+
+  { en:'garlic', phonetic:'/ˈɡɑːlɪk/', pos:'n.', zh:'大蒜', example:'Add garlic for flavor.', exampleCn:'加点蒜提味。' },
+
+  { en:'dry', phonetic:'/dɹaɪ/', pos:'adj.', zh:'干的', example:'Dry hair in the sun.', exampleCn:'在太阳下把头发晒干。' },
+
+  { en:'trip', phonetic:'/trɪp/', pos:'n.', zh:'旅行', example:'A short weekend trip.', exampleCn:'一次短途周末游。' },
+
+  { en:'eye', phonetic:'/aɪ/', pos:'n.', zh:'眼睛', example:'Rub your tired eyes.', exampleCn:'揉揉疲劳的眼。' },
+
+  { en:'cheese', phonetic:'/t͡ʃiz/', pos:'n.', zh:'奶酪', example:'A slice of cheese.', exampleCn:'一片奶酪。' },
+
+  { en:'roof', phonetic:'/ɹuːf/', pos:'n.', zh:'屋顶', example:'The roof leaked in rain.', exampleCn:'雨天屋顶漏了。' },
+
+  { en:'comment', phonetic:'/ˈkɒment/', pos:'v.', zh:'评论', example:'Comment your thoughts below.', exampleCn:'在下面评论你的想法。' },
+
+  { en:'scissors', phonetic:'/ˈsɪzəz/', pos:'n.', zh:'剪刀', example:'Cut with sharp scissors.', exampleCn:'用锋利的剪刀剪。' },
+
+  { en:'share', phonetic:'/ʃeə/', pos:'v.', zh:'分享', example:'Share the cake with friends.', exampleCn:'和朋友分享蛋糕。' },
+
+  { en:'easy', phonetic:'/ˈiːzi/', pos:'adj.', zh:'容易的', example:'An easy English test.', exampleCn:'简单的英语测验。' },
+
+  { en:'spend', phonetic:'/spɛnd/', pos:'v.', zh:'花费', example:'I spend two hours reading.', exampleCn:'我花两小时看书。' },
+
+  { en:'tiny', phonetic:'/ˈtaɪni/', pos:'adj.', zh:'微小的', example:'A tiny bug on the leaf.', exampleCn:'叶子上有一只小虫。' },
+
+  { en:'promise', phonetic:'/ˈprɒmɪs/', pos:'v.', zh:'承诺', example:'He promised to help.', exampleCn:'他答应帮忙。' },
+
+  { en:'light', phonetic:'/lʌɪt/', pos:'adj.', zh:'轻的', example:'A light backpack is best.', exampleCn:'轻一点的背包最好。' },
+
+  { en:'drive', phonetic:'/dɹaɪv/', pos:'v.', zh:'驾驶', example:'He drives to work daily.', exampleCn:'他每天开车上班。' },
+
+  { en:'stop', phonetic:'/stɒp/', pos:'v.', zh:'停止', example:'The bus stopped suddenly.', exampleCn:'公交车突然停了。' },
+
+  { en:'reduce', phonetic:'/rɪˈdjuːs/', pos:'v.', zh:'减少', example:'Reduce your screen time.', exampleCn:'减少看屏幕的时间。' },
+
+  { en:'pen', phonetic:'/pen/', pos:'n.', zh:'钢笔', example:'Sign with a black pen.', exampleCn:'用黑笔签名。' },
+
+  { en:'vague', phonetic:'/veɪɡ/', pos:'adj.', zh:'模糊的', example:'A vague memory of it.', exampleCn:'关于它的模糊记忆。' },
+
+  { en:'speak', phonetic:'/spiːk/', pos:'v.', zh:'说话', example:'She speaks three languages.', exampleCn:'她会说三种语言。' },
+
+  { en:'blanket', phonetic:'/ˈblæŋkɪt/', pos:'n.', zh:'毯子', example:'A warm wool blanket.', exampleCn:'一条暖和的毛毯。' },
+
+  { en:'terrible', phonetic:'/ˈterəbl/', pos:'adj.', zh:'糟糕的', example:'A terrible headache now.', exampleCn:'现在头疼得厉害。' },
+
+  { en:'permit', phonetic:'/ˈpɜːmɪt/', pos:'v.', zh:'许可', example:'Smoking is not permitted.', exampleCn:'禁止吸烟。' },
+
+  { en:'shy', phonetic:'/ʃaɪ/', pos:'adj.', zh:'害羞的', example:'A shy new classmate.', exampleCn:'一个害羞的新同学。' },
+
+  { en:'night', phonetic:'/naɪt/', pos:'n.', zh:'夜晚', example:'Good night, sleep well.', exampleCn:'晚安，睡个好觉。' },
+
+  { en:'road', phonetic:'/ɹəʊd/', pos:'n.', zh:'道路', example:'The road is icy.', exampleCn:'路面结冰了。' },
+
+  { en:'plain', phonetic:'/pleɪn/', pos:'adj.', zh:'朴素的', example:'A plain white shirt.', exampleCn:'一件素白衬衫。' },
+
+  { en:'month', phonetic:'/mʌnθ/', pos:'n.', zh:'月', example:'This month is hectic.', exampleCn:'这个月很忙。' },
+
+  { en:'pan', phonetic:'/pæn/', pos:'n.', zh:'平底锅', example:'Fry in a nonstick pan.', exampleCn:'用不粘锅煎。' },
+
+  { en:'stretch', phonetic:'/stɹɛtʃ/', pos:'v.', zh:'伸展', example:'Stretch before running.', exampleCn:'跑步前先拉伸。' },
+
+  { en:'design', phonetic:'/dɪˈzaɪn/', pos:'v.', zh:'设计', example:'She designed a logo.', exampleCn:'她设计了一个标志。' },
+
+  { en:'improve', phonetic:'/ɪmˈpɹuːv/', pos:'v.', zh:'改善', example:'Exercise improves your mood.', exampleCn:'运动能改善心情。' },
+
+  { en:'excite', phonetic:'/ɪkˈsaɪt/', pos:'v.', zh:'使兴奋', example:'The news excited the fans.', exampleCn:'这消息让粉丝兴奋。' },
+
+  { en:'carry', phonetic:'/ˈkæ.ɹi/', pos:'v.', zh:'搬运', example:'Carry the boxes upstairs.', exampleCn:'把箱子搬到楼上。' },
+
+  { en:'suggest', phonetic:'/səˈdʒɛst/', pos:'v.', zh:'建议', example:'I suggest we leave early.', exampleCn:'我建议我们早点走。' },
+
+  { en:'airport', phonetic:'/ˈɛə.pɔːt/', pos:'n.', zh:'机场', example:'Arrive at the airport early.', exampleCn:'早点到机场。' },
+
+  { en:'map', phonetic:'/mæp/', pos:'n.', zh:'地图', example:'Check the map on phone.', exampleCn:'看手机上的地图。' },
+
+  { en:'clothes', phonetic:'/kləʊ(ð)z/', pos:'n.', zh:'衣服', example:'Fold the clean clothes.', exampleCn:'把干净衣服叠好。' },
+
+  { en:'clock', phonetic:'/klɒk/', pos:'n.', zh:'时钟', example:'The clock shows seven.', exampleCn:'时钟显示七点。' },
+
+  { en:'serious', phonetic:'/ˈsɪə.ɹi.əs/', pos:'adj.', zh:'严肃的', example:'A serious talk with him.', exampleCn:'和他一场严肃谈话。' },
+
+  { en:'bridge', phonetic:'/bɹɪd͡ʒ/', pos:'n.', zh:'桥', example:'Cross the old bridge.', exampleCn:'走过那座老桥。' },
+
+  { en:'key', phonetic:'/kiː/', pos:'n.', zh:'钥匙', example:'I lost my house key.', exampleCn:'我丢了家门钥匙。' },
+
+  { en:'heart', phonetic:'/hɑːt/', pos:'n.', zh:'心脏', example:'Exercise is good for heart.', exampleCn:'运动对心脏好。' },
+
+  { en:'foot', phonetic:'/fʊt/', pos:'n.', zh:'脚', example:'My foot fell asleep.', exampleCn:'我脚麻了。' },
+
+  { en:'fail', phonetic:'/feɪl/', pos:'v.', zh:'失败', example:'Don’t be afraid to fail.', exampleCn:'别害怕失败。' },
+
+  { en:'dark', phonetic:'/dɑːk/', pos:'adj.', zh:'黑暗的', example:'The room is dark.', exampleCn:'房间很暗。' },
+
+  { en:'vaccine', phonetic:'/vækˈsaɪn/', pos:'n.', zh:'疫苗', example:'Book a vaccine shot.', exampleCn:'预约疫苗接种。' },
+
+  { en:'toothbrush', phonetic:'/ˈtuːθbɹʌʃ/', pos:'n.', zh:'牙刷', example:'Change your toothbrush monthly.', exampleCn:'每月换一次牙刷。' },
+
+  { en:'count', phonetic:'/kaʊnt/', pos:'v.', zh:'数', example:'Count the apples in the bag.', exampleCn:'数一下袋里的苹果。' },
+
+  { en:'like', phonetic:'/laɪk/', pos:'v.', zh:'喜欢', example:'I like reading novels.', exampleCn:'我喜欢读小说。' },
+
+  { en:'true', phonetic:'/tɹuː/', pos:'adj.', zh:'真实的', example:'Is the story true?', exampleCn:'故事是真的吗？' },
+
+  { en:'neat', phonetic:'/niːt/', pos:'adj.', zh:'整洁的', example:'A neat desk helps focus.', exampleCn:'整洁的书桌利于专注。' },
+
+  { en:'free', phonetic:'/fɹiː/', pos:'adj.', zh:'空闲的；免费的', example:'Are you free tonight?', exampleCn:'今晚有空吗？' },
+
+  { en:'build', phonetic:'/bɪld/', pos:'v.', zh:'建造', example:'They build houses for a living.', exampleCn:'他们以盖房子为生。' },
+
+  { en:'divide', phonetic:'/dɪˈvaɪd/', pos:'v.', zh:'分开；划分', example:'Divide the work equally.', exampleCn:'把工作平分。' },
+
+  { en:'mean', phonetic:'/miːn/', pos:'adj.', zh:'刻薄的', example:'Do not be so mean.', exampleCn:'别这么刻薄。' },
+
+  { en:'passport', phonetic:'/ˈpɑːspɔːt/', pos:'n.', zh:'护照', example:'Check your passport.', exampleCn:'检查一下护照。' },
+
+  { en:'spicy', phonetic:'/ˈspaɪsi/', pos:'adj.', zh:'辣的', example:'A spicy bowl of noodles.', exampleCn:'一碗辣面条。' },
+
+  { en:'coin', phonetic:'/kɔɪn/', pos:'n.', zh:'硬币', example:'Drop a coin in the slot.', exampleCn:'投一枚硬币进槽。' },
+
+  { en:'sneeze', phonetic:'/sniːz/', pos:'v.', zh:'打喷嚏', example:'Cover your mouth when you sneeze.', exampleCn:'打喷嚏时捂住嘴。' },
+
+  { en:'lose', phonetic:'/luːz/', pos:'v.', zh:'输；丢失', example:'I lost my wallet.', exampleCn:'我的钱包丢了。' },
+
+  { en:'request', phonetic:'/ɹɪˈkwɛst/', pos:'v.', zh:'请求', example:'Request a day off.', exampleCn:'请一天假。' },
+
+  { en:'sister', phonetic:'/ˈsɪs.tə/', pos:'n.', zh:'姐妹', example:'My sister is a doctor.', exampleCn:'我姐是医生。' },
+
+  { en:'rough', phonetic:'/ɹʌf/', pos:'adj.', zh:'粗糙的', example:'Rough hands from work.', exampleCn:'干活磨出的粗手。' },
+
+  { en:'normal', phonetic:'/ˈnɔːməl/', pos:'adj.', zh:'正常的', example:'A normal workday routine.', exampleCn:'正常的工作日节奏。' },
+
+  { en:'weather', phonetic:'/ˈwɛðə/', pos:'n.', zh:'天气', example:'The weather is lovely.', exampleCn:'天气真好。' },
+
+  { en:'rain', phonetic:'/ɹeɪn/', pos:'n.', zh:'雨', example:'The rain slowed the bus.', exampleCn:'雨让公交变慢。' },
+
+  { en:'cheer', phonetic:'/t͡ʃɪə(ɹ)/', pos:'v.', zh:'使振奋', example:'The win cheered the team.', exampleCn:'胜利鼓舞了全队。' },
 
 ];
 
