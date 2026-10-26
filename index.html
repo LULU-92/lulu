@@ -8694,7 +8694,7 @@ function getAutoPush(){
 
   let s = storage.get(key, null);
 
-  const valid = s && s.date === todayKey() && s.v === 7 &&
+  const valid = s && s.date === todayKey() && s.v === 8 &&
 
     Array.isArray(s.words) && s.words.every(w => w && typeof w.phonetic === 'string');
 
@@ -8728,7 +8728,7 @@ function getAutoPush(){
 
   const newsOff = dayOfYear % newsMax;
 
-  s = { date: todayKey(), words: words, quoteIdx: quoteIdx, newsOff: newsOff, briefPage: 0, quoteClick: 0, v: 7 };
+  s = { date: todayKey(), words: words, quoteIdx: quoteIdx, newsOff: newsOff, briefPage: 0, quoteClick: 0, v: 8 };
 
   storage.set(key, s);
 
@@ -9846,6 +9846,648 @@ const wordsData = [
 
   { en:'cheer', phonetic:'/t͡ʃɪə(ɹ)/', pos:'v.', zh:'使振奋', example:'The win cheered the team.', exampleCn:'胜利鼓舞了全队。' },
 
+
+
+  { en:'case', phonetic:'/keɪs/', pos:'n.', zh:'箱子', example:"He packed the case for travel.", exampleCn:'他装好旅行箱。' },
+
+  { en:'choice', phonetic:'/tʃɔɪs/', pos:'n.', zh:'选择', example:"That was a wise choice.", exampleCn:'那是个明智的选择。' },
+
+  { en:'silence', phonetic:'/ˈsaɪ.ləns/', pos:'n.', zh:'安静', example:"A moment of silence followed.", exampleCn:'接着是一阵沉默。' },
+
+  { en:'single', phonetic:'/ˈsɪŋɡəl/', pos:'adj.', zh:'单一的', example:"She lives in a single room.", exampleCn:'她住单间。' },
+
+  { en:'guide', phonetic:'/ɡaɪd/', pos:'v.', zh:'引导', example:"The app guides you step by step.", exampleCn:'这个应用一步步引导你。' },
+
+  { en:'wheel', phonetic:'/ʍiːl/', pos:'n.', zh:'轮子', example:"The front wheel is flat.", exampleCn:'前轮瘪了。' },
+
+  { en:'pour', phonetic:'/pɔː/', pos:'v.', zh:'倒', example:"Pour the tea into the cup.", exampleCn:'把茶倒进杯子里。' },
+
+  { en:'dumpling', phonetic:'/ˈdʌmplɪŋ/', pos:'n.', zh:'饺子', example:"We made dumplings together.", exampleCn:'我们一起包了饺子。' },
+
+  { en:'noodle', phonetic:'/nuːdl̩/', pos:'n.', zh:'面条', example:"I had beef noodles for lunch.", exampleCn:'午餐我吃了牛肉面。' },
+
+  { en:'terminal', phonetic:'/ˈtɚmɪnəl/', pos:'n.', zh:'航站楼', example:"Go to terminal two for departure.", exampleCn:'出发请到2号航站楼。' },
+
+  { en:'balcony', phonetic:'/ˈbælkəni/', pos:'n.', zh:'阳台', example:"We ate breakfast on the balcony.", exampleCn:'我们在阳台吃早餐。' },
+
+  { en:'hour', phonetic:'/ˈaʊɚ/', pos:'n.', zh:'小时', example:"I waited for an hour.", exampleCn:'我等了一个小时。' },
+
+  { en:'double', phonetic:'/ˈdʌb.əl/', pos:'adj.', zh:'双倍的', example:"The price is double today.", exampleCn:'今天价格翻倍。' },
+
+  { en:'sale', phonetic:'/seɪl/', pos:'n.', zh:'打折', example:"The shoes are on sale.", exampleCn:'这鞋在打折。' },
+
+  { en:'watermelon', phonetic:'/ˈwɔːtəˌmɛlən/', pos:'n.', zh:'西瓜', example:"We shared a watermelon.", exampleCn:'我们分了一个西瓜。' },
+
+  { en:'walk', phonetic:'/wɔːk/', pos:'v.', zh:'走路', example:"I walk to work when it is sunny.", exampleCn:'晴天我走路去上班。' },
+
+  { en:'partner', phonetic:'/ˈpɐːtnə/', pos:'n.', zh:'伙伴', example:"He is my dance partner.", exampleCn:'他是我的舞伴。' },
+
+  { en:'kettle', phonetic:'/ˈkɛ.təl/', pos:'n.', zh:'水壶', example:"The kettle is boiling water.", exampleCn:'水壶在烧水。' },
+
+  { en:'plug', phonetic:'/plʌɡ/', pos:'n.', zh:'插头', example:"The plug fell behind the desk.", exampleCn:'插头掉到桌子后面了。' },
+
+  { en:'soothe', phonetic:'/suːð/', pos:'v.', zh:'安抚', example:"Music soothes the crying baby.", exampleCn:'音乐安抚了哭泣的宝宝。' },
+
+  { en:'stale', phonetic:'/steɪl/', pos:'adj.', zh:'不新鲜的', example:"The bread has gone stale.", exampleCn:'面包已经不新鲜了。' },
+
+  { en:'half', phonetic:'/hɑːf/', pos:'n.', zh:'一半', example:"I ate half the apple.", exampleCn:'我吃了半个苹果。' },
+
+  { en:'happy', phonetic:'/ˈhæpiː/', pos:'adj.', zh:'开心的', example:"She is happy with the gift.", exampleCn:'她对礼物很满意。' },
+
+  { en:'color', phonetic:'/ˈkʌl.ə(ɹ)/', pos:'n.', zh:'颜色', example:"What color is your bag?", exampleCn:'你的包是什么颜色？' },
+
+  { en:'battery', phonetic:'/ˈbætəɹi/', pos:'n.', zh:'电池', example:"The remote needs a new battery.", exampleCn:'遥控器需要新电池。' },
+
+  { en:'squint', phonetic:'/skwɪnt/', pos:'v.', zh:'眯眼', example:"He squinted to read the sign.", exampleCn:'他眯着眼看招牌。' },
+
+  { en:'egg', phonetic:'/eɪɡ/', pos:'n.', zh:'鸡蛋', example:"She fried an egg for breakfast.", exampleCn:'她煎了个蛋当早餐。' },
+
+  { en:'score', phonetic:'/skɔː/', pos:'v.', zh:'得分', example:"Our team scored three goals.", exampleCn:'我们队进了三个球。' },
+
+  { en:'sun', phonetic:'/sʌn/', pos:'n.', zh:'太阳', example:"The sun rose behind the hill.", exampleCn:'太阳从山后升起。' },
+
+  { en:'bus', phonetic:'/bɐs/', pos:'n.', zh:'公交车', example:"I take the bus to work.", exampleCn:'我坐公交上班。' },
+
+  { en:'charger', phonetic:'/ˈtʃɑːdʒə/', pos:'n.', zh:'充电器', example:"I forgot my phone charger.", exampleCn:'我忘了带手机充电器。' },
+
+  { en:'habit', phonetic:'/ˈhæbət/', pos:'n.', zh:'习惯', example:"Reading is a good habit.", exampleCn:'阅读是好习惯。' },
+
+  { en:'sigh', phonetic:'/saɪ/', pos:'v.', zh:'叹气', example:"She sighed after a long day.", exampleCn:'漫长的一天后她叹了口气。' },
+
+  { en:'dive', phonetic:'/ˈdaɪv/', pos:'v.', zh:'潜水', example:"She dived into the blue pool.", exampleCn:'她跳进蓝色泳池。' },
+
+  { en:'already', phonetic:'/ɔːlˈrɛdi/', pos:'adv.', zh:'已经', example:"I have already eaten.", exampleCn:'我已经吃过了。' },
+
+  { en:'boot', phonetic:'/buːt/', pos:'n.', zh:'靴子', example:"He bought leather boots.", exampleCn:'他买了双皮靴。' },
+
+  { en:'buy', phonetic:'/baɪ/', pos:'v.', zh:'买', example:"I bought milk on the way home.", exampleCn:'我回家路上买了牛奶。' },
+
+  { en:'scream', phonetic:'/skɹiːm/', pos:'v.', zh:'尖叫', example:"She screamed when she saw the mouse.", exampleCn:'她看到老鼠尖叫起来。' },
+
+  { en:'nod', phonetic:'/nɔd/', pos:'v.', zh:'点头', example:"She nodded to show agreement.", exampleCn:'她点头表示同意。' },
+
+  { en:'hill', phonetic:'/hɪl/', pos:'n.', zh:'小山', example:"We walked up the hill.", exampleCn:'我们走上小山。' },
+
+  { en:'tongue', phonetic:'/tʌŋ/', pos:'n.', zh:'舌头', example:"The doctor checked my tongue.", exampleCn:'医生检查了我的舌头。' },
+
+  { en:'toast', phonetic:'/təʊst/', pos:'v.', zh:'干杯', example:"They toasted with orange juice.", exampleCn:'他们用橙汁干杯。' },
+
+  { en:'letter', phonetic:'/-ɾə(ɹ)/', pos:'n.', zh:'信', example:"She wrote a long letter.", exampleCn:'她写了一封长信。' },
+
+  { en:'page', phonetic:'/peɪd͡ʒ/', pos:'n.', zh:'页', example:"Turn to page ten.", exampleCn:'翻到第10页。' },
+
+  { en:'wave', phonetic:'/weɪv/', pos:'v.', zh:'挥手', example:"He waved goodbye at the door.", exampleCn:'他在门口挥手道别。' },
+
+  { en:'grumble', phonetic:'/ˈɡɹʌmbl̩/', pos:'v.', zh:'抱怨', example:"He grumbled about the rain.", exampleCn:'他抱怨下雨。' },
+
+  { en:'loudly', phonetic:'/ˈlaʊdli/', pos:'adv.', zh:'大声地', example:"The kids laughed loudly.", exampleCn:'孩子们大声笑。' },
+
+  { en:'invent', phonetic:'/ɪnˈvɛnt/', pos:'v.', zh:'发明', example:"He invented a small kitchen tool.", exampleCn:'他发明了一个小厨具。' },
+
+  { en:'yellow', phonetic:'/jɛlə/', pos:'adj.', zh:'黄色的', example:"A yellow flower bloomed.", exampleCn:'一朵黄花开了。' },
+
+  { en:'luck', phonetic:'/lʊk/', pos:'n.', zh:'运气', example:"Good luck with the test!", exampleCn:'考试祝你好运！' },
+
+  { en:'purple', phonetic:'/ˈpɜːpl/', pos:'adj.', zh:'紫色的', example:"A purple scarf matched her coat.", exampleCn:'紫围巾配她的大衣。' },
+
+  { en:'train', phonetic:'/treɪn/', pos:'v.', zh:'训练', example:"They train for the race weekly.", exampleCn:'他们每周为比赛训练。' },
+
+  { en:'wall', phonetic:'/wɔːl/', pos:'n.', zh:'墙', example:"He hung a picture on the wall.", exampleCn:'他在墙上挂了幅画。' },
+
+  { en:'chance', phonetic:'/tʃɑːns/', pos:'n.', zh:'机会', example:"Give him a second chance.", exampleCn:'再给他一次机会。' },
+
+  { en:'zoo', phonetic:'/zuː/', pos:'n.', zh:'动物园', example:"We saw pandas at the zoo.", exampleCn:'我们在动物园看到了熊猫。' },
+
+  { en:'stare', phonetic:'/stɛə(ɹ)/', pos:'v.', zh:'盯着', example:"Do not stare at strangers.", exampleCn:'别盯着陌生人看。' },
+
+  { en:'breathe', phonetic:'/bɹiːð/', pos:'v.', zh:'呼吸', example:"Breathe slowly and calm down.", exampleCn:'慢慢呼吸，冷静下来。' },
+
+  { en:'book', phonetic:'/buːk/', pos:'v.', zh:'预订', example:"We booked a table for two.", exampleCn:'我们订了一张两人桌。' },
+
+  { en:'white', phonetic:'/waɪt/', pos:'adj.', zh:'白色的', example:"The snow is pure white.", exampleCn:'雪是纯白的。' },
+
+  { en:'always', phonetic:'/ˈɔː(l).weɪz/', pos:'adv.', zh:'总是', example:"She always arrives early.", exampleCn:'她总是到得很早。' },
+
+  { en:'garage', phonetic:'/ɡəˈɹɑː(d)ʒ/', pos:'n.', zh:'车库', example:"He parked the car in the garage.", exampleCn:'他把车停进了车库。' },
+
+  { en:'temple', phonetic:'/ˈtɛmp(ə)l/', pos:'n.', zh:'寺庙', example:"The old temple stands on the hill.", exampleCn:'古庙立在山上。' },
+
+  { en:'download', phonetic:'/ˈdaʊnˌləʊd/', pos:'v.', zh:'下载', example:"Download the app from the store.", exampleCn:'从应用商店下载这个软件。' },
+
+  { en:'several', phonetic:'/ˈsɛv(ə)ɹəl/', pos:'adj.', zh:'几个', example:"We visited several shops.", exampleCn:'我们逛了几家店。' },
+
+  { en:'catch', phonetic:'/kæt͡ʃ/', pos:'v.', zh:'接住', example:"Catch the ball with both hands.", exampleCn:'用双手接住球。' },
+
+  { en:'bow', phonetic:'/bəʊ/', pos:'v.', zh:'鞠躬', example:"He bowed to thank the audience.", exampleCn:'他鞠躬感谢观众。' },
+
+  { en:'lightning', phonetic:'/ˈlaɪt.nɪŋ/', pos:'n.', zh:'闪电', example:"Lightning lit the dark sky.", exampleCn:'闪电照亮夜空。' },
+
+  { en:'voice', phonetic:'/vɔɪs/', pos:'n.', zh:'嗓音', example:"She has a gentle voice.", exampleCn:'她嗓音温柔。' },
+
+  { en:'mango', phonetic:'/ˈmæŋɡəʊ/', pos:'n.', zh:'芒果', example:"The mango is soft and sweet.", exampleCn:'芒果软软的很甜。' },
+
+  { en:'button', phonetic:'/ˈbʌtn̩/', pos:'n.', zh:'纽扣', example:"A button came off the shirt.", exampleCn:'衬衫掉了一颗扣子。' },
+
+  { en:'collect', phonetic:'/kəˈlɛkt/', pos:'v.', zh:'收集', example:"He collects stamps from abroad.", exampleCn:'他收集外国邮票。' },
+
+  { en:'temperature', phonetic:'/ˈtɛmp(ə)ɹətʃə(ɹ)/', pos:'n.', zh:'体温', example:"Take his temperature, please.", exampleCn:'请给他量体温。' },
+
+  { en:'before', phonetic:'/bɪˈfɔː/', pos:'prep.', zh:'在之前', example:"Wash hands before meals.", exampleCn:'饭前洗手。' },
+
+  { en:'baby', phonetic:'/ˈbeɪbi/', pos:'n.', zh:'婴儿', example:"The baby is sleeping.", exampleCn:'宝宝睡着了。' },
+
+  { en:'uncle', phonetic:'/ˈʌŋ.kəl/', pos:'n.', zh:'叔叔', example:"My uncle lives in the city.", exampleCn:'我叔叔住在城里。' },
+
+  { en:'blame', phonetic:'/bleɪm/', pos:'v.', zh:'责备', example:"Do not blame others for mistakes.", exampleCn:'别把错误怪到别人头上。' },
+
+  { en:'explore', phonetic:'/ɪkˈsplɔː/', pos:'v.', zh:'探索', example:"We explored the old town on foot.", exampleCn:'我们步行探索了古镇。' },
+
+  { en:'set', phonetic:'/sɛt/', pos:'n.', zh:'套', example:"She bought a set of cups.", exampleCn:'她买了一套杯子。' },
+
+  { en:'exchange', phonetic:'/ɛksˈtʃeɪndʒ/', pos:'v.', zh:'交换', example:"They exchanged gifts at the party.", exampleCn:'他们在聚会上交换了礼物。' },
+
+  { en:'recycle', phonetic:'/ɹiˈsaɪkəl/', pos:'v.', zh:'回收', example:"Recycle paper and glass at home.", exampleCn:'在家回收纸张和玻璃。' },
+
+  { en:'guest', phonetic:'/ɡɛst/', pos:'n.', zh:'客人', example:"We have a guest for dinner.", exampleCn:'我们晚餐有客人。' },
+
+  { en:'spoon', phonetic:'/spuːn/', pos:'n.', zh:'勺子', example:"Stir the milk with a spoon.", exampleCn:'用勺子搅牛奶。' },
+
+  { en:'picnic', phonetic:'/ˈpɪknɪk/', pos:'v.', zh:'野餐', example:"We picnicked by the stream.", exampleCn:'我们在小溪边野餐。' },
+
+  { en:'midnight', phonetic:'/ˈmɪdnʌɪt/', pos:'n.', zh:'午夜', example:"The clock struck midnight.", exampleCn:'钟敲响了午夜。' },
+
+  { en:'branch', phonetic:'/bɹæntʃ/', pos:'n.', zh:'树枝', example:"A bird sat on the branch.", exampleCn:'一只鸟停在树枝上。' },
+
+  { en:'lip', phonetic:'/lɪp/', pos:'n.', zh:'嘴唇', example:"Her lip was dry in winter.", exampleCn:'她冬天嘴唇干。' },
+
+  { en:'beef', phonetic:'/biːf/', pos:'n.', zh:'牛肉', example:"We bought beef for dinner.", exampleCn:'我们买了牛肉做晚饭。' },
+
+  { en:'tag', phonetic:'/teɪɡ/', pos:'n.', zh:'标签', example:"The tag shows the size.", exampleCn:'标签上写着尺码。' },
+
+  { en:'often', phonetic:'/ˈɑf(t)ən/', pos:'adv.', zh:'经常', example:"We often walk by the lake.", exampleCn:'我们经常在湖边走。' },
+
+  { en:'gray', phonetic:'/ɡɹeɪ/', pos:'adj.', zh:'灰色的', example:"The sky turned gray.", exampleCn:'天色变灰了。' },
+
+  { en:'persuade', phonetic:'/pəˈsweɪd/', pos:'v.', zh:'说服', example:"She persuaded me to join.", exampleCn:'她说动我参加了。' },
+
+  { en:'confused', phonetic:'/kənˈfjuːzd/', pos:'adj.', zh:'困惑的', example:"I am confused by the map.", exampleCn:'我被地图搞糊涂了。' },
+
+  { en:'loud', phonetic:'/laʊd/', pos:'adj.', zh:'大声的', example:"The music is too loud.", exampleCn:'音乐太大声了。' },
+
+  { en:'read', phonetic:'/ɹiːd/', pos:'v.', zh:'读', example:"He reads the news every morning.", exampleCn:'他每天早上读新闻。' },
+
+  { en:'near', phonetic:'/nɪə(ɹ)/', pos:'adj.', zh:'近的', example:"The station is near our home.", exampleCn:'车站离我们家很近。' },
+
+  { en:'flower', phonetic:'/ˈflaʊə/', pos:'n.', zh:'花', example:"She picked a wild flower.", exampleCn:'她采了一朵野花。' },
+
+  { en:'row', phonetic:'/ˈɹəʊ/', pos:'n.', zh:'排', example:"We sat in the front row.", exampleCn:'我们坐在前排。' },
+
+  { en:'brush', phonetic:'/bɹʌʃ/', pos:'v.', zh:'刷', example:"She brushes her teeth twice a day.", exampleCn:'她每天刷两次牙。' },
+
+  { en:'purse', phonetic:'/pɜːs/', pos:'n.', zh:'手提包', example:"Her purse is small and pink.", exampleCn:'她的包小巧粉色。' },
+
+  { en:'unlock', phonetic:'/ʌnˈlɒk/', pos:'v.', zh:'开锁', example:"She unlocked the door with her key.", exampleCn:'她用钥匙开了门。' },
+
+  { en:'birthday', phonetic:'/ˈbɜːθ.deɪ/', pos:'n.', zh:'生日', example:"Happy birthday to you!", exampleCn:'祝你生日快乐！' },
+
+  { en:'receive', phonetic:'/ɹɪˈsiːv/', pos:'v.', zh:'收到', example:"I received your letter today.", exampleCn:'我今天收到了你的信。' },
+
+  { en:'sort', phonetic:'/sɔːt/', pos:'v.', zh:'分类', example:"Sort the mail by sender.", exampleCn:'按发件人把邮件分类。' },
+
+  { en:'console', phonetic:'/kənˈsəʊl/', pos:'v.', zh:'安慰', example:"She consoled her friend.", exampleCn:'她安慰了朋友。' },
+
+  { en:'seek', phonetic:'/siːk/', pos:'v.', zh:'寻找', example:"They seek a quiet place to rest.", exampleCn:'他们在寻找一个安静休息的地方。' },
+
+  { en:'ankle', phonetic:'/ˈæŋ.kəl/', pos:'n.', zh:'脚踝', example:"He twisted his ankle.", exampleCn:'他崴了脚踝。' },
+
+  { en:'center', phonetic:'/ˈsɛn.tə(ɹ)/', pos:'n.', zh:'中心', example:"The park is at the city center.", exampleCn:'公园在市中心。' },
+
+  { en:'glance', phonetic:'/ɡlɑːns/', pos:'v.', zh:'瞥', example:"She glanced at her watch.", exampleCn:'她瞥了一眼手表。' },
+
+  { en:'ear', phonetic:'/ɪə̯/', pos:'n.', zh:'耳朵', example:"She wore a ring in her ear.", exampleCn:'她耳朵上戴了只耳环。' },
+
+  { en:'wire', phonetic:'/waɪə(ɹ)/', pos:'n.', zh:'电线', example:"The wire connects the lamp.", exampleCn:'电线连着灯。' },
+
+  { en:'bowl', phonetic:'/bəʊɫ/', pos:'n.', zh:'碗', example:"He ate a bowl of rice.", exampleCn:'他吃了一碗饭。' },
+
+  { en:'string', phonetic:'/stɹɪŋ/', pos:'n.', zh:'绳子', example:"Tie the box with string.", exampleCn:'用绳子把箱子捆好。' },
+
+  { en:'leaf', phonetic:'/liːf/', pos:'n.', zh:'叶子', example:"A red leaf fell slowly.", exampleCn:'一片红叶缓缓落下。' },
+
+  { en:'sweep', phonetic:'/swiːp/', pos:'v.', zh:'扫', example:"I sweep the floor after dinner.", exampleCn:'我晚饭后扫地。' },
+
+  { en:'type', phonetic:'/taɪp/', pos:'v.', zh:'打字', example:"She can type very fast.", exampleCn:'她打字很快。' },
+
+  { en:'debate', phonetic:'/dɪˈbeɪt/', pos:'v.', zh:'辩论', example:"They debated the new rule.", exampleCn:'他们就新规定辩论。' },
+
+  { en:'island', phonetic:'/ˈaɪ̯lənd/', pos:'n.', zh:'岛', example:"We visited a small island.", exampleCn:'我们参观了一座小岛。' },
+
+  { en:'cheek', phonetic:'/tʃiːk/', pos:'n.', zh:'脸颊', example:"A wind chilled her cheek.", exampleCn:'风冻红了她的脸颊。' },
+
+  { en:'group', phonetic:'/ɡɹuːp/', pos:'n.', zh:'组', example:"We formed a small group.", exampleCn:'我们组成了小组。' },
+
+  { en:'shout', phonetic:'/ʃaʊt/', pos:'v.', zh:'喊', example:"He shouted for help.", exampleCn:'他大声呼救。' },
+
+  { en:'top', phonetic:'/tɒp/', pos:'n.', zh:'顶部', example:"Put the book on top.", exampleCn:'把书放在最上面。' },
+
+  { en:'vitamin', phonetic:'/ˈvɑet.ə.mən/', pos:'n.', zh:'维生素', example:"She takes a vitamin each day.", exampleCn:'她每天服一粒维生素。' },
+
+  { en:'strawberry', phonetic:'/ˈstɹɔːb(ə)ɹi/', pos:'n.', zh:'草莓', example:"We picked fresh strawberries.", exampleCn:'我们摘了新鲜草莓。' },
+
+  { en:'after', phonetic:'/ˈæf.tə(ɹ)/', pos:'prep.', zh:'在之后', example:"Walk the dog after dinner.", exampleCn:'饭后遛狗。' },
+
+  { en:'office', phonetic:'/ˈɑfɪs/', pos:'n.', zh:'办公室', example:"He left the office early.", exampleCn:'他早早离开了办公室。' },
+
+  { en:'adult', phonetic:'/əˈdʌlt/', pos:'n.', zh:'成人', example:"An adult must sign here.", exampleCn:'需成人签字。' },
+
+  { en:'noise', phonetic:'/nɔɪz/', pos:'n.', zh:'噪音', example:"The noise kept me awake.", exampleCn:'噪音让我睡不着。' },
+
+  { en:'jeans', phonetic:'/d͡ʒiːnz/', pos:'n.', zh:'牛仔裤', example:"She wore old jeans.", exampleCn:'她穿了条旧牛仔裤。' },
+
+  { en:'register', phonetic:'/ˈɹɛdʒ.ɪs.tə/', pos:'v.', zh:'注册', example:"Register on the website to start.", exampleCn:'在网站注册后即可开始。' },
+
+  { en:'dozen', phonetic:'/ˈdʌzən/', pos:'n.', zh:'一打', example:"I bought a dozen eggs.", exampleCn:'我买了一打鸡蛋。' },
+
+  { en:'hanger', phonetic:'/ˈhæŋɡə/', pos:'n.', zh:'衣架', example:"Put the shirt on a hanger.", exampleCn:'把衬衫挂在衣架上。' },
+
+  { en:'plate', phonetic:'/pleɪt/', pos:'n.', zh:'盘子', example:"Put the cake on a plate.", exampleCn:'把蛋糕放在盘子里。' },
+
+  { en:'freeze', phonetic:'/ˈfɹiːz/', pos:'v.', zh:'冷冻', example:"Freeze the meat for later use.", exampleCn:'把肉冷冻以备后用。' },
+
+  { en:'toothache', phonetic:'/ˈtuθˌeɪk/', pos:'n.', zh:'牙痛', example:"The sweet caused a toothache.", exampleCn:'甜食引起了牙痛。' },
+
+  { en:'back', phonetic:'/bæk/', pos:'n.', zh:'背', example:"She has pain in her back.", exampleCn:'她后背疼。' },
+
+  { en:'wrist', phonetic:'/ɹɪst/', pos:'n.', zh:'手腕', example:"She wore a watch on her wrist.", exampleCn:'她手腕上戴着表。' },
+
+  { en:'inside', phonetic:'/ɪnˈsaɪd/', pos:'prep.', zh:'在里面', example:"Keep the keys inside the box.", exampleCn:'把钥匙放在盒子里。' },
+
+  { en:'skin', phonetic:'/skɪn/', pos:'n.', zh:'皮肤', example:"The cream softens the skin.", exampleCn:'这款乳霜软化皮肤。' },
+
+  { en:'ice', phonetic:'/aɪs/', pos:'n.', zh:'冰', example:"The lake turned to ice.", exampleCn:'湖面结了冰。' },
+
+  { en:'heavy', phonetic:'/ˈhe.vi/', pos:'adj.', zh:'重的', example:"The bag is too heavy to carry.", exampleCn:'这袋子太重拎不动。' },
+
+  { en:'borrow', phonetic:'/ˈbɔɹoʊ/', pos:'v.', zh:'借入', example:"Can I borrow your pen?", exampleCn:'我能借你的笔吗？' },
+
+  { en:'name', phonetic:'/neɪm/', pos:'n.', zh:'名字', example:"What is your name?", exampleCn:'你叫什么名字？' },
+
+  { en:'weekend', phonetic:'/wiːˈkɛnd/', pos:'n.', zh:'周末', example:"What will you do this weekend?", exampleCn:'这周末你打算做什么？' },
+
+  { en:'idea', phonetic:'/ɑeˈdiə̯/', pos:'n.', zh:'主意', example:"That is a great idea.", exampleCn:'那是个好主意。' },
+
+  { en:'bored', phonetic:'/bɔːd/', pos:'adj.', zh:'无聊的', example:"The kids were bored at home.", exampleCn:'孩子们在家很无聊。' },
+
+  { en:'tram', phonetic:'/træm/', pos:'n.', zh:'有轨电车', example:"The tram runs along the river.", exampleCn:'有轨电车沿河行驶。' },
+
+  { en:'salty', phonetic:'/ˈsɒl.ti/', pos:'adj.', zh:'咸的', example:"The soup is too salty.", exampleCn:'汤太咸了。' },
+
+  { en:'tidy', phonetic:'/ˈtaɪdi/', pos:'v.', zh:'整理', example:"Tidy your desk before you leave.", exampleCn:'走之前把书桌整理好。' },
+
+  { en:'sob', phonetic:'/sɒb/', pos:'v.', zh:'抽泣', example:"The child sobbed after the fall.", exampleCn:'孩子摔跤后抽泣起来。' },
+
+  { en:'napkin', phonetic:'/ˈnæp.kɪn/', pos:'n.', zh:'餐巾', example:"Place a napkin on your lap.", exampleCn:'把餐巾放在腿上。' },
+
+  { en:'ride', phonetic:'/raɪd/', pos:'v.', zh:'骑', example:"I ride my bike to school.", exampleCn:'我骑车去上学。' },
+
+  { en:'farm', phonetic:'/fɑːɹm/', pos:'n.', zh:'农场', example:"They visited a sheep farm.", exampleCn:'他们参观了一个羊场。' },
+
+  { en:'peek', phonetic:'/piːk/', pos:'v.', zh:'偷看', example:"He peeked through the curtains.", exampleCn:'他透过窗帘偷看。' },
+
+  { en:'lazy', phonetic:'/ˈleɪzi/', pos:'adj.', zh:'懒惰的', example:"The lazy cat slept all day.", exampleCn:'懒猫睡了一整天。' },
+
+  { en:'mix', phonetic:'/ˈmɪks/', pos:'v.', zh:'混合', example:"Mix the flour with the eggs.", exampleCn:'把面粉和鸡蛋混合。' },
+
+  { en:'cookie', phonetic:'/ˈkuːki/', pos:'n.', zh:'饼干', example:"The kids love chocolate cookies.", exampleCn:'孩子们爱巧克力饼干。' },
+
+  { en:'cart', phonetic:'/kɑːt/', pos:'n.', zh:'购物车', example:"She pushed a full cart.", exampleCn:'她推着满满的购物车。' },
+
+  { en:'soon', phonetic:'/suːn/', pos:'adv.', zh:'很快', example:"The bus will come soon.", exampleCn:'公交很快就来。' },
+
+  { en:'reason', phonetic:'/ˈɹiːzən/', pos:'n.', zh:'理由', example:"What is the reason for this?", exampleCn:'这是为什么？' },
+
+  { en:'meditate', phonetic:'/ˈmɛdɪteɪt/', pos:'v.', zh:'冥想', example:"She meditates for ten minutes.", exampleCn:'她冥想十分钟。' },
+
+  { en:'tool', phonetic:'/tuːl/', pos:'n.', zh:'工具', example:"A hammer is a useful tool.", exampleCn:'锤子是有用的工具。' },
+
+  { en:'flu', phonetic:'/flʉː/', pos:'n.', zh:'流感', example:"The flu spread at school.", exampleCn:'流感在学校传播。' },
+
+  { en:'fortnight', phonetic:'/ˈfɔːtnaɪt/', pos:'n.', zh:'两周', example:"The project lasts a fortnight.", exampleCn:'项目持续两周。' },
+
+  { en:'fold', phonetic:'/fəʊld/', pos:'v.', zh:'折叠', example:"Please fold the clean clothes.", exampleCn:'请把干净衣服叠好。' },
+
+  { en:'fast', phonetic:'/fɑːst/', pos:'adj.', zh:'快的', example:"The train is fast and clean.", exampleCn:'火车又快又干净。' },
+
+  { en:'mall', phonetic:'/mɔːl/', pos:'n.', zh:'商场', example:"They met at the mall.", exampleCn:'他们在商场碰面。' },
+
+  { en:'hike', phonetic:'/haɪk/', pos:'v.', zh:'徒步', example:"We hiked up the mountain.", exampleCn:'我们徒步上了山。' },
+
+  { en:'grate', phonetic:'/ɡreɪt/', pos:'v.', zh:'磨碎', example:"Grate some cheese on top.", exampleCn:'在上面磨些奶酪。' },
+
+  { en:'gaze', phonetic:'/ɡeɪz/', pos:'v.', zh:'凝视', example:"They gazed at the night sky.", exampleCn:'他们凝视着夜空。' },
+
+  { en:'word', phonetic:'/wɜːd/', pos:'n.', zh:'单词', example:"Write the new word twice.", exampleCn:'把新单词写两遍。' },
+
+  { en:'aunt', phonetic:'/ɑ(ː)nt/', pos:'n.', zh:'阿姨', example:"My aunt sent a gift.", exampleCn:'我阿姨寄了礼物。' },
+
+  { en:'sweater', phonetic:'/ˈswɛtə/', pos:'n.', zh:'毛衣', example:"The wool sweater is warm.", exampleCn:'羊毛衫很暖和。' },
+
+  { en:'traffic', phonetic:'/ˈtɹæfɪk/', pos:'n.', zh:'交通', example:"The traffic is heavy at rush hour.", exampleCn:'高峰时段交通拥堵。' },
+
+  { en:'butter', phonetic:'/ˈbʊtə/', pos:'n.', zh:'黄油', example:"Spread butter on the toast.", exampleCn:'在吐司上涂黄油。' },
+
+  { en:'melt', phonetic:'/mɛlt/', pos:'v.', zh:'融化', example:"The ice melted in the sun.", exampleCn:'冰在阳光下融化了。' },
+
+  { en:'paste', phonetic:'/peɪst/', pos:'v.', zh:'粘贴', example:"Paste the text into the box.", exampleCn:'把文字粘贴到方框里。' },
+
+  { en:'oil', phonetic:'/ɔɪl/', pos:'n.', zh:'油', example:"Heat the oil in the pan.", exampleCn:'在锅里把油加热。' },
+
+  { en:'home', phonetic:'/(h)əʊm/', pos:'n.', zh:'家', example:"There is no place like home.", exampleCn:'没有什么比得上家。' },
+
+  { en:'crossing', phonetic:'/ˈkrɒsɪŋ/', pos:'n.', zh:'人行横道', example:"Use the crossing to cross safely.", exampleCn:'走人行横道安全过街。' },
+
+  { en:'feast', phonetic:'/fiːst/', pos:'v.', zh:'宴请', example:"They feasted on fresh seafood.", exampleCn:'他们享用了新鲜海鲜大餐。' },
+
+  { en:'whisper', phonetic:'/ˈ(h)wɪspə/', pos:'v.', zh:'低语', example:"She whispered a secret to me.", exampleCn:'她悄悄对我讲了个秘密。' },
+
+  { en:'tired', phonetic:'/taɪəd/', pos:'adj.', zh:'累的', example:"I am tired after the trip.", exampleCn:'旅途后我很累。' },
+
+  { en:'arm', phonetic:'/ɑːm/', pos:'n.', zh:'手臂', example:"She broke her left arm.", exampleCn:'她左臂骨折了。' },
+
+  { en:'lot', phonetic:'/lɒt/', pos:'n.', zh:'许多', example:"Thanks a lot for your help.", exampleCn:'多谢你的帮助。' },
+
+  { en:'repair', phonetic:'/ɹɪˈpɛə/', pos:'v.', zh:'修理', example:"He can repair the broken chair.", exampleCn:'他能修好那把坏椅子。' },
+
+  { en:'play', phonetic:'/pleɪ/', pos:'v.', zh:'玩', example:"The kids play in the garden.", exampleCn:'孩子们在花园里玩。' },
+
+  { en:'flash', phonetic:'/flæʃ/', pos:'v.', zh:'闪光', example:"Lightning flashed in the sky.", exampleCn:'天空闪过一道闪电。' },
+
+  { en:'chest', phonetic:'/t͡ʃɛst/', pos:'n.', zh:'胸口', example:"He felt a pain in his chest.", exampleCn:'他胸口疼。' },
+
+  { en:'brain', phonetic:'/bɹeɪn/', pos:'n.', zh:'大脑', example:"Sleep is good for the brain.", exampleCn:'睡眠有益大脑。' },
+
+  { en:'carefully', phonetic:'/ˈkɛːfli/', pos:'adv.', zh:'仔细地', example:"Read the label carefully.", exampleCn:'仔细读标签。' },
+
+  { en:'mug', phonetic:'/mʌɡ/', pos:'n.', zh:'马克杯', example:"I made tea in a big mug.", exampleCn:'我用大马克杯沏了茶。' },
+
+  { en:'fly', phonetic:'/flaɪ/', pos:'v.', zh:'飞', example:"Birds fly south in winter.", exampleCn:'鸟儿冬天往南飞。' },
+
+  { en:'clap', phonetic:'/klæp/', pos:'v.', zh:'鼓掌', example:"The crowd clapped for the singer.", exampleCn:'观众为歌手鼓掌。' },
+
+  { en:'paint', phonetic:'/peɪnt/', pos:'v.', zh:'绘画', example:"He painted a picture of the sea.", exampleCn:'他画了一幅海的画。' },
+
+  { en:'confess', phonetic:'/kənˈfɛs/', pos:'v.', zh:'坦白', example:"He confessed his mistake.", exampleCn:'他坦白了错误。' },
+
+  { en:'trouble', phonetic:'/ˈtɹʌb(ə)l/', pos:'n.', zh:'麻烦', example:"Sorry to cause trouble.", exampleCn:'抱歉添麻烦了。' },
+
+  { en:'greet', phonetic:'/ɡɹiːt/', pos:'v.', zh:'问候', example:"She greeted me with a smile.", exampleCn:'她微笑着向我打招呼。' },
+
+  { en:'waste', phonetic:'/weɪst/', pos:'v.', zh:'浪费', example:"Do not waste food or water.", exampleCn:'不要浪费食物和水。' },
+
+  { en:'gently', phonetic:'/ˈdʒɛntli/', pos:'adv.', zh:'轻轻地', example:"Close the door gently.", exampleCn:'轻轻关门。' },
+
+  { en:'receipt', phonetic:'/ɹɪˈsiːt/', pos:'n.', zh:'收据', example:"Keep the receipt, just in case.", exampleCn:'留着收据以防万一。' },
+
+  { en:'team', phonetic:'/tiːm/', pos:'n.', zh:'团队', example:"Our team won the game.", exampleCn:'我们队赢了比赛。' },
+
+  { en:'soup', phonetic:'/suːp/', pos:'n.', zh:'汤', example:"The soup is hot, be careful.", exampleCn:'汤很烫，小心。' },
+
+  { en:'exaggerate', phonetic:'/ɛɡˈzæ.dʒə.ɹeɪt/', pos:'v.', zh:'夸大', example:"He exaggerated the long wait.", exampleCn:'他夸大了等待的时间。' },
+
+  { en:'round', phonetic:'/ˈɹaʊnd/', pos:'adj.', zh:'圆的', example:"She cut the cake into round pieces.", exampleCn:'她把蛋糕切成圆块。' },
+
+  { en:'aisle', phonetic:'/aɪl/', pos:'n.', zh:'过道', example:"She sat in the aisle seat.", exampleCn:'她坐在靠过道的位子。' },
+
+  { en:'red', phonetic:'/rɛd/', pos:'adj.', zh:'红色的', example:"She wore a red coat.", exampleCn:'她穿了件红外套。' },
+
+  { en:'cousin', phonetic:'/ˈkʌz.n̩/', pos:'n.', zh:'表亲', example:"My cousin visited from abroad.", exampleCn:'我表亲从国外来玩。' },
+
+  { en:'chin', phonetic:'/tʃɪn/', pos:'n.', zh:'下巴', example:"He rested his chin on his hand.", exampleCn:'他用手托着下巴。' },
+
+  { en:'park', phonetic:'/pɑːk/', pos:'v.', zh:'停车', example:"Where did you park the car?", exampleCn:'你把车停哪儿了？' },
+
+  { en:'thought', phonetic:'/θɔːt/', pos:'n.', zh:'想法', example:"A happy thought came to her.", exampleCn:'她冒出一个开心的念头。' },
+
+  { en:'scan', phonetic:'/skæn/', pos:'v.', zh:'扫描', example:"Scan the ticket at the gate.", exampleCn:'在闸机处扫描车票。' },
+
+  { en:'story', phonetic:'/ˈstɔːri/', pos:'n.', zh:'故事', example:"She read a bedtime story.", exampleCn:'她读了一则睡前故事。' },
+
+  { en:'stove', phonetic:'/stəʊv/', pos:'n.', zh:'炉灶', example:"She cooked soup on the stove.", exampleCn:'她在炉灶上煮汤。' },
+
+  { en:'throw', phonetic:'/θɹəʊ/', pos:'v.', zh:'扔', example:"Do not throw paper on the floor.", exampleCn:'别把纸扔在地上。' },
+
+  { en:'hopeful', phonetic:'/ˈhəʊpfəl/', pos:'adj.', zh:'有希望的', example:"We are hopeful for good news.", exampleCn:'我们对好消息充满希望。' },
+
+  { en:'grape', phonetic:'/ɡɹeɪp/', pos:'n.', zh:'葡萄', example:"She bought a bunch of grapes.", exampleCn:'她买了一串葡萄。' },
+
+  { en:'sofa', phonetic:'/ˈsəʊfə/', pos:'n.', zh:'沙发', example:"We sat on the sofa to chat.", exampleCn:'我们坐在沙发上聊天。' },
+
+  { en:'spread', phonetic:'/spɹɛd/', pos:'v.', zh:'涂抹', example:"Spread butter on the toast.", exampleCn:'在吐司上涂黄油。' },
+
+  { en:'festival', phonetic:'/ˈfɛstɪvl/', pos:'n.', zh:'节日', example:"The festival lasts three days.", exampleCn:'节日持续三天。' },
+
+  { en:'glow', phonetic:'/ɡləʊ/', pos:'v.', zh:'发光', example:"The lamp glowed softly.", exampleCn:'灯光柔和地亮着。' },
+
+  { en:'cushion', phonetic:'/ˈkʊʃn/', pos:'n.', zh:'靠垫', example:"The cushion is soft and round.", exampleCn:'靠垫柔软又圆。' },
+
+  { en:'full', phonetic:'/fʊl/', pos:'adj.', zh:'满的', example:"The cup is full of tea.", exampleCn:'杯子倒满了茶。' },
+
+  { en:'snore', phonetic:'/snɔː/', pos:'v.', zh:'打鼾', example:"My father snores at night.", exampleCn:'我父亲晚上打鼾。' },
+
+  { en:'relax', phonetic:'/ɹɪˈlæks/', pos:'v.', zh:'放松', example:"I relax by listening to music.", exampleCn:'我听音乐来放松。' },
+
+  { en:'bit', phonetic:'/bɪt/', pos:'n.', zh:'一点', example:"Wait a bit longer.", exampleCn:'再等一会儿。' },
+
+  { en:'assist', phonetic:'/əˈsɪst/', pos:'v.', zh:'协助', example:"He assisted the teacher with papers.", exampleCn:'他帮老师整理试卷。' },
+
+  { en:'sail', phonetic:'/seɪl/', pos:'v.', zh:'航行', example:"They sailed across the lake.", exampleCn:'他们划船过了湖。' },
+
+  { en:'school', phonetic:'/skuːl/', pos:'n.', zh:'学校', example:"The school is near the river.", exampleCn:'学校就在河边。' },
+
+  { en:'between', phonetic:'/bɪˈtwiːn/', pos:'prep.', zh:'在之间', example:"The shop is between two banks.", exampleCn:'店在两家银行之间。' },
+
+  { en:'bitter', phonetic:'/ˈbɪtə/', pos:'adj.', zh:'苦的', example:"The medicine is bitter.", exampleCn:'药很苦。' },
+
+  { en:'minute', phonetic:'/ˈmɪnɪt/', pos:'n.', zh:'分钟', example:"The bus is five minutes late.", exampleCn:'公交晚点五分钟。' },
+
+  { en:'stone', phonetic:'/stɐʉn/', pos:'n.', zh:'石头', example:"He skipped a stone on water.", exampleCn:'他在水面上打水漂。' },
+
+  { en:'wander', phonetic:'/ˈwɒndə/', pos:'v.', zh:'漫步', example:"We wandered along the river.", exampleCn:'我们沿着河边漫步。' },
+
+  { en:'print', phonetic:'/pɹɪnt/', pos:'v.', zh:'打印', example:"Print the report in color.", exampleCn:'把报告用彩色打印出来。' },
+
+  { en:'under', phonetic:'/ˈʊndə/', pos:'prep.', zh:'在下面', example:"The cat slept under the table.", exampleCn:'猫在桌子下睡觉。' },
+
+  { en:'parent', phonetic:'/ˈpɛəɹənt/', pos:'n.', zh:'父母', example:"Her parent came to the school.", exampleCn:'她家长来到学校。' },
+
+  { en:'hall', phonetic:'/hɔːl/', pos:'n.', zh:'大厅', example:"They met in the school hall.", exampleCn:'他们在学校大厅碰面。' },
+
+  { en:'cash', phonetic:'/kæʃ/', pos:'n.', zh:'现金', example:"I paid in cash.", exampleCn:'我用现金付的。' },
+
+  { en:'rarely', phonetic:'/ˈɹɛːli/', pos:'adv.', zh:'很少', example:"She rarely watches TV.", exampleCn:'她很少看电视。' },
+
+  { en:'bone', phonetic:'/bəʉn/', pos:'n.', zh:'骨头', example:"The dog buried a bone.", exampleCn:'狗埋了根骨头。' },
+
+  { en:'queue', phonetic:'/kjuː/', pos:'n.', zh:'队伍', example:"Join the queue at the door.", exampleCn:'在门口排队。' },
+
+  { en:'moan', phonetic:'/məʊn/', pos:'v.', zh:'呻吟', example:"The wind moaned through the trees.", exampleCn:'风在树间呜咽。' },
+
+  { en:'tooth', phonetic:'/tuːθ/', pos:'n.', zh:'牙齿', example:"Brush each tooth carefully.", exampleCn:'仔细刷每颗牙。' },
+
+  { en:'rule', phonetic:'/ɹuːl/', pos:'n.', zh:'规则', example:"Follow the rule, please.", exampleCn:'请遵守规则。' },
+
+  { en:'hang', phonetic:'/hæŋ/', pos:'v.', zh:'挂', example:"Hang your coat on the hook.", exampleCn:'把外套挂在钩子上。' },
+
+  { en:'line', phonetic:'/laɪn/', pos:'n.', zh:'线', example:"Draw a straight line.", exampleCn:'画一条直线。' },
+
+  { en:'sprinkle', phonetic:'/ˈspɹɪŋkəl/', pos:'v.', zh:'撒', example:"Sprinkle salt over the salad.", exampleCn:'在沙拉上撒点盐。' },
+
+  { en:'stranger', phonetic:'/ˈstɹeɪndʒə/', pos:'n.', zh:'陌生人', example:"Do not talk to strangers.", exampleCn:'别和陌生人说话。' },
+
+  { en:'skirt', phonetic:'/skɜːt/', pos:'n.', zh:'裙子', example:"The blue skirt is new.", exampleCn:'这条蓝裙子是新的。' },
+
+  { en:'sleeve', phonetic:'/sliːv/', pos:'n.', zh:'袖子', example:"Roll up your sleeves.", exampleCn:'把袖子卷起来。' },
+
+  { en:'brag', phonetic:'/bɹæɡ/', pos:'v.', zh:'吹牛', example:"He bragged about his new phone.", exampleCn:'他吹嘘自己的新手机。' },
+
+  { en:'cucumber', phonetic:'/ˈkjuːkʌmbə/', pos:'n.', zh:'黄瓜', example:"Add cucumber to the salad.", exampleCn:'在沙拉里加黄瓜。' },
+
+  { en:'cake', phonetic:'/keɪk/', pos:'n.', zh:'蛋糕', example:"They baked a small cake.", exampleCn:'他们烤了个小蛋糕。' },
+
+  { en:'blood', phonetic:'/blʊd/', pos:'n.', zh:'血', example:"The cut bled a little blood.", exampleCn:'伤口出了一点血。' },
+
+  { en:'yell', phonetic:'/jɛl/', pos:'v.', zh:'大喊', example:"Do not yell at the dog.", exampleCn:'别对狗大喊大叫。' },
+
+  { en:'belt', phonetic:'/bɛlt/', pos:'n.', zh:'腰带', example:"His belt is brown leather.", exampleCn:'他的腰带是棕色皮的。' },
+
+  { en:'corn', phonetic:'/kɔɹn/', pos:'n.', zh:'玉米', example:"We boiled corn for dinner.", exampleCn:'我们煮了玉米当晚餐。' },
+
+  { en:'freezer', phonetic:'/fɹiːzə/', pos:'n.', zh:'冷冻柜', example:"Store the meat in the freezer.", exampleCn:'把肉放进冷冻柜。' },
+
+  { en:'goal', phonetic:'/ɡɒʊl/', pos:'n.', zh:'目标', example:"Our goal is to finish on time.", exampleCn:'我们的目标是按时完成。' },
+
+  { en:'warn', phonetic:'/wɔːn/', pos:'v.', zh:'警告', example:"He warned us about the storm.", exampleCn:'他提醒我们注意暴风雨。' },
+
+  { en:'question', phonetic:'/ˈkwɛstjən/', pos:'n.', zh:'问题', example:"He asked a good question.", exampleCn:'他问了个好问题。' },
+
+  { en:'sign', phonetic:'/saɪn/', pos:'v.', zh:'签名', example:"Please sign your name here.", exampleCn:'请在这里签名。' },
+
+  { en:'celebrate', phonetic:'/ˈsɛl.ə.bɹeɪt/', pos:'v.', zh:'庆祝', example:"We celebrated her birthday.", exampleCn:'我们庆祝了她的生日。' },
+
+  { en:'holiday', phonetic:'/ˈhɒlɪdeɪ/', pos:'n.', zh:'假日', example:"We went to the beach for holiday.", exampleCn:'我们假期去了海滩。' },
+
+  { en:'week', phonetic:'/wiːk/', pos:'n.', zh:'周', example:"We meet once a week.", exampleCn:'我们每周见一次。' },
+
+  { en:'language', phonetic:'/ˈlæŋɡwɪdʒ/', pos:'n.', zh:'语言', example:"English is a useful language.", exampleCn:'英语是门有用的语言。' },
+
+  { en:'thunder', phonetic:'/ˈθʌndə/', pos:'n.', zh:'雷', example:"We heard thunder far away.", exampleCn:'我们听到远处打雷。' },
+
+  { en:'paper', phonetic:'/ˈpeɪpə/', pos:'n.', zh:'纸', example:"Please pass me the paper.", exampleCn:'请把纸递给我。' },
+
+  { en:'carrot', phonetic:'/ˈkæɹ.ət/', pos:'n.', zh:'胡萝卜', example:"The rabbit ate a carrot.", exampleCn:'兔子吃了一根胡萝卜。' },
+
+  { en:'jealous', phonetic:'/ˈdʒɛləs/', pos:'adj.', zh:'嫉妒的', example:"He felt jealous of his friend.", exampleCn:'他羡慕朋友。' },
+
+  { en:'behind', phonetic:'/bɪˈhaɪnd/', pos:'prep.', zh:'在后面', example:"The bike is behind the car.", exampleCn:'自行车在车后面。' },
+
+  { en:'sky', phonetic:'/skaɪ/', pos:'n.', zh:'天空', example:"The sky is clear tonight.", exampleCn:'今夜天空晴朗。' },
+
+  { en:'sauce', phonetic:'/sɔːs/', pos:'n.', zh:'酱汁', example:"He poured sauce on the pasta.", exampleCn:'他把酱汁浇在面上。' },
+
+  { en:'many', phonetic:'/ˈmæni/', pos:'adj.', zh:'许多的', example:"Many stars lit the sky.", exampleCn:'许多星星点亮夜空。' },
+
+  { en:'blunt', phonetic:'/blʌnt/', pos:'adj.', zh:'钝的', example:"The pencil is blunt, sharpen it.", exampleCn:'铅笔钝了，削一下。' },
+
+  { en:'face', phonetic:'/feɪs/', pos:'n.', zh:'脸', example:"Wash your face each morning.", exampleCn:'每天早晨洗脸。' },
+
+  { en:'stir', phonetic:'/stɜː/', pos:'v.', zh:'搅拌', example:"Stir the soup until it thickens.", exampleCn:'搅拌汤直到变稠。' },
+
+  { en:'chat', phonetic:'/tʃæt/', pos:'v.', zh:'聊天', example:"We chatted over a cup of tea.", exampleCn:'我们边喝茶边聊天。' },
+
+  { en:'shell', phonetic:'/ʃɛl/', pos:'n.', zh:'贝壳', example:"She collected a pretty shell.", exampleCn:'她捡了个漂亮的贝壳。' },
+
+  { en:'mouth', phonetic:'/mʌʊθ/', pos:'n.', zh:'嘴', example:"Open your mouth, say ah.", exampleCn:'张开嘴，说啊。' },
+
+  { en:'wipe', phonetic:'/waɪp/', pos:'v.', zh:'擦', example:"Wipe the table before dinner.", exampleCn:'晚饭前把桌子擦干净。' },
+
+  { en:'neck', phonetic:'/nɛk/', pos:'n.', zh:'脖子', example:"She wore a scarf on her neck.", exampleCn:'她脖子上围了条围巾。' },
+
+  { en:'worried', phonetic:'/ˈwʌɹid/', pos:'adj.', zh:'担忧的', example:"She is worried about the exam.", exampleCn:'她担心考试。' },
+
+  { en:'lemon', phonetic:'/ˈlɛmən/', pos:'n.', zh:'柠檬', example:"The lemon is sour and fresh.", exampleCn:'柠檬又酸又鲜。' },
+
+  { en:'cup', phonetic:'/kʌp/', pos:'n.', zh:'杯子', example:"She drank a cup of water.", exampleCn:'她喝了一杯水。' },
+
+  { en:'star', phonetic:'/stɑː/', pos:'n.', zh:'星星', example:"We counted the stars.", exampleCn:'我们数星星。' },
+
+  { en:'pear', phonetic:'/pɛə/', pos:'n.', zh:'梨', example:"She ate a juicy pear.", exampleCn:'她吃了个多汁的梨。' },
+
+  { en:'shrimp', phonetic:'/ʃɹɪmp/', pos:'n.', zh:'虾', example:"We had shrimp for lunch.", exampleCn:'午餐我们吃了虾。' },
+
+  { en:'surprised', phonetic:'/səˈpɹaɪzd/', pos:'adj.', zh:'惊讶的', example:"We were surprised by the news.", exampleCn:'我们对消息感到惊讶。' },
+
+  { en:'email', phonetic:'/ˈiːmeɪl/', pos:'n.', zh:'电子邮件', example:"Check your email daily.", exampleCn:'每天查收邮件。' },
+
+  { en:'river', phonetic:'/ˈɹɪvə/', pos:'n.', zh:'河', example:"The river flows to the sea.", exampleCn:'河水流向大海。' },
+
+  { en:'dress', phonetic:'/dɹɛs/', pos:'v.', zh:'穿衣', example:"The child can dress herself now.", exampleCn:'这孩子现在能自己穿衣了。' },
+
+  { en:'station', phonetic:'/ˈsteɪʃən/', pos:'n.', zh:'车站', example:"The station is near the park.", exampleCn:'车站在公园附近。' },
+
+  { en:'surprise', phonetic:'/səˈpɹaɪz/', pos:'n.', zh:'惊喜', example:"He planned a nice surprise.", exampleCn:'他策划了一个惊喜。' },
+
+  { en:'swallow', phonetic:'/ˈswɒləʊ/', pos:'v.', zh:'吞', example:"Swallow the pill with water.", exampleCn:'用水把药吞下去。' },
+
+  { en:'bucket', phonetic:'/ˈbʌkɪt/', pos:'n.', zh:'桶', example:"Fill the bucket with water.", exampleCn:'把桶装满水。' },
+
+  { en:'doze', phonetic:'/doʊz/', pos:'v.', zh:'打瞌睡', example:"He dozed off on the sofa.", exampleCn:'他在沙发上打起了瞌睡。' },
+
+  { en:'kid', phonetic:'/kɪd/', pos:'n.', zh:'小孩', example:"The kid loves the playground.", exampleCn:'孩子喜欢游乐场。' },
+
+  { en:'bake', phonetic:'/beɪk/', pos:'v.', zh:'烘焙', example:"She baked cookies for the kids.", exampleCn:'她给孩子们烤了饼干。' },
+
+  { en:'tap', phonetic:'/tæp/', pos:'n.', zh:'水龙头', example:"The tap is leaking a little.", exampleCn:'水龙头有点漏水。' },
+
+  { en:'frost', phonetic:'/fɹɑst/', pos:'n.', zh:'霜', example:"Frost formed on the grass.", exampleCn:'草上结了霜。' },
+
+  { en:'problem', phonetic:'/ˈpɹɒbləm/', pos:'n.', zh:'问题', example:"We found a small problem.", exampleCn:'我们发现了个小问题。' },
+
+  { en:'rude', phonetic:'/ɹʉːd/', pos:'adj.', zh:'粗鲁的', example:"It is rude to interrupt.", exampleCn:'打断别人说话很没礼貌。' },
+
+  { en:'rug', phonetic:'/ɹʌɡ/', pos:'n.', zh:'小地毯', example:"A small rug lay by the bed.", exampleCn:'床边铺着小块地毯。' },
+
+  { en:'pot', phonetic:'/pɒt/', pos:'n.', zh:'锅', example:"She cooked rice in a pot.", exampleCn:'她用锅煮了饭。' },
+
+  { en:'brake', phonetic:'/bɹeɪk/', pos:'n.', zh:'刹车', example:"Check the brake before riding.", exampleCn:'骑车前检查刹车。' },
+
+  { en:'hug', phonetic:'/hʌɡ/', pos:'v.', zh:'拥抱', example:"The mother hugged her child.", exampleCn:'母亲拥抱了她的孩子。' },
+
+  { en:'message', phonetic:'/ˈmɛsɪd͡ʒ/', pos:'n.', zh:'信息', example:"I left a message for you.", exampleCn:'我给你留了言。' },
+
+  { en:'green', phonetic:'/ɡɹiːn/', pos:'adj.', zh:'绿色的', example:"The leaves are bright green.", exampleCn:'叶子是鲜绿色的。' },
+
+  { en:'meat', phonetic:'/miːt/', pos:'n.', zh:'肉', example:"The meat is fresh from the market.", exampleCn:'肉是刚从市场买的鲜肉。' },
+
+  { en:'together', phonetic:'/təˈɡɛð.ə(ɹ)/', pos:'adv.', zh:'一起', example:"Let us solve it together.", exampleCn:'我们一起解决吧。' },
+
+  { en:'owe', phonetic:'/əʊ/', pos:'v.', zh:'欠', example:"I owe him fifty dollars.", exampleCn:'我欠他五十美元。' },
+
+  { en:'rinse', phonetic:'/ɹɛns/', pos:'v.', zh:'冲洗', example:"Rinse the cup with clean water.", exampleCn:'用清水把杯子冲洗一下。' },
+
+  { en:'wake', phonetic:'/ˈweɪk/', pos:'v.', zh:'醒来', example:"I wake at seven every day.", exampleCn:'我每天七点醒来。' },
+
+  { en:'install', phonetic:'/ɪnˈstɔːl/', pos:'v.', zh:'安装', example:"Install the new software first.", exampleCn:'先安装新软件。' },
+
+  { en:'reuse', phonetic:'/ɹiːˈjuːs/', pos:'v.', zh:'重复使用', example:"Reuse the bottle to save plastic.", exampleCn:'重复使用瓶子以节省塑料。' },
+
+  { en:'front', phonetic:'/fɹʌnt/', pos:'n.', zh:'前面', example:"Stand at the front, please.", exampleCn:'请站到前面。' },
+
+  { en:'chopsticks', phonetic:'/ˈtʃɒpstɪks/', pos:'n.', zh:'筷子', example:"He eats with chopsticks.", exampleCn:'他用筷子吃饭。' },
+
+  { en:'waist', phonetic:'/weɪst/', pos:'n.', zh:'腰', example:"The belt fits her waist.", exampleCn:'腰带正合她的腰。' },
+
+  { en:'picture', phonetic:'/ˈpɪktʃə/', pos:'n.', zh:'图画', example:"He drew a picture of a cat.", exampleCn:'他画了只猫。' },
+
 ];
 
 
